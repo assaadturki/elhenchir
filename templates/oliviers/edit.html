@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3">
+    <h1 class="h2">✏️ Modifier l'olivier</h1>
+    <div class="btn-toolbar">
+        <a href="{{ url_for('oliviers') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Retour
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-header bg-warning">
+                <i class="fas fa-edit"></i> Modifier: {{ olivier.numero_arbre or 'Olivier' }} ({{ olivier.variete or 'Variete inconnue' }})
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="parcelle_id" class="form-label">Parcelle *</label>
+                        <select class="form-control" id="parcelle_id" name="parcelle_id" required>
+                            {% for parcelle in parcelles %}
+                            <option value="{{ parcelle.id }}" {% if olivier.parcelle_id == parcelle.id %}selected{% endif %}>
+                                {{ parcelle.nom }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="numero_arbre" class="form-label">Numéro d'arbre</label>
+                            <input type="text" class="form-control" id="numero_arbre" name="numero_arbre" value="{{ olivier.numero_arbre or '' }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="variete" class="form-label">Variété</label>
+                            <select class="form-control" id="variete" name="variete">
+                                {% for v in varietes %}
+                                <option value="{{ v }}" {% if olivier.variete == v %}selected{% endif %}>{{ v }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="age" class="form-label">Âge (années)</label>
+                            <input type="number" class="form-control" id="age" name="age" value="{{ olivier.age or '' }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="date_plantation" class="form-label">Date plantation</label>
+                            <input type="date" class="form-control" id="date_plantation" name="date_plantation" value="{{ olivier.date_plantation.strftime('%Y-%m-%d') if olivier.date_plantation else '' }}">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="statut" class="form-label">Statut</label>
+                            <select class="form-control" id="statut" name="statut">
+                                <option value="actif" {% if olivier.statut == 'actif' %}selected{% endif %}>Actif</option>
+                                <option value="malade" {% if olivier.statut == 'malade' %}selected{% endif %}>Malade</option>
+                                <option value="mort" {% if olivier.statut == 'mort' %}selected{% endif %}>Mort</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="etat_sante" class="form-label">État sanitaire</label>
+                            <select class="form-control" id="etat_sante" name="etat_sante">
+                                {% for etat in etats_sante %}
+                                <option value="{{ etat }}" {% if olivier.etat_sante == etat %}selected{% endif %}>{{ etat }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="3">{{ olivier.notes or '' }}</textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-save"></i> Mettre à jour
+                    </button>
+                    <a href="{{ url_for('oliviers') }}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> Annuler
+                    </a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

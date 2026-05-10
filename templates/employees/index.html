@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between pt-3 pb-2 mb-3">
+    <h1 class="h2">Employes</h1>
+    <a href="{{ url_for('create_employee') }}" class="btn btn-success"><i class="fas fa-plus"></i> Ajouter Employe</a>
+</div>
+<table class="table table-striped">
+    <thead><tr><th>Nom</th><th>Prenom</th><th>Poste</th><th>Telephone</th><th>Salaire</th><th>Actions</th></tr></thead>
+    <tbody>
+        {% for employee in employees %}
+        <tr><td>{{ employee.nom }}</td><td>{{ employee.prenom or '-' }}</td><td>{{ employee.poste or '-' }}</td>
+            <td>{{ employee.telephone or '-' }}</td><td>{{ "%.2f"|format(employee.salaire_tnd) if employee.salaire_tnd else '-' }} TND</td>
+            <td>
+                <a href="{{ url_for('edit_employee', id=employee.id) }}" class="btn btn-primary btn-sm">Modifier</a>
+                <a href="{{ url_for('manage_attendance', id=employee.id) }}" class="btn btn-info btn-sm">Presence</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

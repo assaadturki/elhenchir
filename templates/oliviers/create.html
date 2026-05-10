@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>➕ Ajouter un olivier</h2>
+<form method="POST">
+    <div class="row">
+        <div class="col-md-6">
+            <div class="mb-3"><label>Parcelle</label><select name="parcelle_id" class="form-control" required>{% for p in parcelles %}<option value="{{ p.id }}">{{ p.nom }}</option>{% endfor %}</select></div>
+            <div class="mb-3"><label>N° arbre</label><input type="text" name="numero_arbre" class="form-control"></div>
+            <div class="mb-3"><label>Variété</label><select name="variete" class="form-control">{% for v in varietes %}<option value="{{ v }}">{{ v }}</option>{% endfor %}</select></div>
+            <div class="mb-3"><label>Âge (ans)</label><input type="number" name="age" class="form-control"></div>
+            <div class="mb-3"><label>Date plantation</label><input type="date" name="date_plantation" class="form-control"></div>
+            <div class="mb-3"><label>État sanitaire</label><select name="etat_sante" class="form-control"><option value="Excellent">Excellent</option><option value="Bon">Bon</option><option value="Moyen">Moyen</option><option value="Mauvais">Mauvais</option></select></div>
+            <button type="submit" class="btn btn-success">Enregistrer</button>
+            <a href="{{ url_for('oliviers') }}" class="btn btn-secondary">Annuler</a>
+        </div>
+    </div>
+</form>
+{% endblock %}

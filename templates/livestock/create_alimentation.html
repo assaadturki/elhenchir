@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3">
+    <h1 class="h2">🍽️ Enregistrer Alimentation</h1>
+    <div class="btn-toolbar">
+        <a href="{{ url_for('alimentations') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Retour
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <i class="fas fa-drumstick-bite"></i> Alimentation animale
+            </div>
+            <div class="card-body">
+                <form method="POST" id="alimentationForm">
+                    <div class="mb-3">
+                        <label for="animal_id" class="form-label">Animal *</label>
+                        <select name="animal_id" id="animal_id" class="form-control" required>
+                            <option value="">Sélectionner un animal...</option>
+                            {% for animal in animaux %}
+                            <option value="{{ animal.id }}">
+                                {{ animal.nom or animal.numero_identification or 'Sans nom' }}
+                                {% if animal.type_animal %}
+                                    - {{ animal.type_animal.nom }}
+                                {% else %}
+                                    - Type non défini
+                                {% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="date_alimentation" class="form-label">Date *</label>
+                        <input type="date" name="date_alimentation" id="date_alimentation" class="form-control" value="{{ now.strftime('%Y-%m-%d') }}" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="type_nourriture" class="form-label">Type de nourriture *</label>
+                        <select name="type_nourriture" id="type_nourriture" class="form-control" required>
+                            <option value="">Sélectionner...</option>
+                            <option value="Foin">🌾 Foin</option>
+                            <option value="Aliment concentré">🍚 Aliment concentré</option>
+                            <option value="Fourrage vert">🌿 Fourrage vert</option>
+                            <option value="Granulés">🔘 Granulés</option>
+                            <option value="Orge">🌽 Orge</option>
+                            <option value="Avoine">🌾 Avoine</option>
+                            <option value="Maïs">🌽 Maïs</option>
+                            <option value="Paille">🌾 Paille</option>
+                            <option value="Ensilage">🥫 Ensilage</option>
+                            <option value="Complément minéral">🧂 Complément minéral</option>
+                            <option value="Foin luzerne">🌿 Foin luzerne</option>
+                            <option value="Tourteau">🥜 Tourteau</option>
+                            <option value="Pulpe betterave">🍬 Pulpe de betterave</option>
+                            <option value="Autre">📦 Autre</option>
+                        </select>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="quantite" class="form-label">Quantité *</label>
+                            <input type="number" step="0.01" name="quantite" id="quantite" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="unite" class="form-label">Unité *</label>
+                            <select name="unite" id="unite" class="form-control" required>
+                                <option value="kg">kg (kilogrammes)</option>
+                                <option value="g">g (grammes)</option>
+                                <option value="L">L (litres)</option>
+                                <option value="sacs">Sacs</option>
+                                <option value="bottes">Bottes</option>
+                                <option value="tonnes">Tonnes</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="cout_tnd" class="form-label">Coût total (TND)</label>
+                        <input type="number" step="0.001" name="cout_tnd" id="cout_tnd" class="form-control" value="0.000">
+                        <small class="text-muted">Coût total de cette alimentation en Dinar Tunisien</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">Notes</label>
+                        <textarea name="notes" id="notes" class="form-control" rows="3" 
+                                  placeholder="Qualité, appétence, observations..."></textarea>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Information :</strong> Le coût sera automatiquement ajouté aux dépenses de la ferme.
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-save"></i> Enregistrer
+                        </button>
+                        <a href="{{ url_for('alimentations') }}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> Annuler
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const today = new Date().toISOString().split('T')[0];
+        const dateInput = document.getElementById('date_alimentation');
+        if (!dateInput.value) {
+            dateInput.value = today;
+        }
+        
+        // Afficher un aperçu du coût
+        const coutInput = document.getElementById('cout_tnd');
+        coutInput.addEventListener('change', function() {
+            let value = parseFloat(this.value);
+            if (isNaN(value)) this.value = 0;
+            else this.value = value.toFixed(3);
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3">
+    <h1 class="h2">Tableau de bord</h1>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4 mb-3">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <h6>Revenus du mois</h6>
+                <h3>{{ "%.2f"|format(monthly_revenues) }} TND</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card text-white bg-danger">
+            <div class="card-body">
+                <h6>Depenses du mois</h6>
+                <h3>{{ "%.2f"|format(monthly_expenses) }} TND</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card text-white bg-info">
+            <div class="card-body">
+                <h6>Benefice du mois</h6>
+                <h3>{{ "%.2f"|format(monthly_profit) }} TND</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-3">
+        <div class="card">
+            <div class="card-header bg-warning">Alertes Stock Faible</div>
+            <div class="card-body">
+                {% if low_stock %}
+                    {% for item in low_stock %}
+                        <div class="alert alert-warning">{{ item.produit }}: {{ item.quantite }} {{ item.unite }}</div>
+                    {% endfor %}
+                {% else %}
+                    <p>Aucune alerte</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="card">
+            <div class="card-header bg-info">Cultures Actives</div>
+            <div class="card-body">
+                <h2>{{ active_crops }}</h2>
+                <p>cultures en cours</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

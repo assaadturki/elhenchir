@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3">
+    <h1 class="h2">Fiche Animal - {{ animal.nom or animal.numero_identification }}</h1>
+    <div class="btn-toolbar">
+        <a href="{{ url_for('animals') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Retour
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-3">
+            <div class="card-header bg-info text-white">
+                <i class="fas fa-info-circle"></i> Informations générales
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <tr><th>N° Identification:</th><td>{{ animal.numero_identification or '-' }}</td></tr>
+                    <tr><th>Nom:</th><td>{{ animal.nom or '-' }}</td></tr>
+                    <tr><th>Type:</th><td>{% if animal.type_animal %}{{ animal.type_animal.nom }}{% else %}-{% endif %}</td></tr>
+                    <tr><th>Catégorie:</th><td>{% if animal.type_animal %}{{ animal.type_animal.categorie }}{% else %}-{% endif %}</td></tr>
+                    <tr><th>Sexe:</th><td>{{ animal.sexe or '-' }}</td></tr>
+                    <tr><th>Race:</th><td>{{ animal.race or '-' }}</td></tr>
+                    <tr><th>Couleur:</th><td>{{ animal.couleur or '-' }}</td></tr>
+                    <tr><th>Date naissance:</th><td>{{ animal.date_naissance.strftime('%d/%m/%Y') if animal.date_naissance else '-' }}</td></tr>
+                    <tr><th>Poids naissance:</th><td>{{ animal.poids_naissance }} kg</td></tr>
+                    <tr><th>Poids actuel:</th><td>{{ animal.poids_actuel }} kg</td></tr>
+                    <tr><th>Statut:</th><td><span class="badge bg-success">{{ animal.statut }}</span></td></tr>
+                    <tr><th>Parcelle:</th><td>{{ animal.parcelle.nom if animal.parcelle else '-' }}</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SECTION DES SOINS -->
+<div class="row">
+    <div class="col-md-12">
+        <div class="card mb-3">
+            <div class="card-header bg-success text-white">
+                <i class="fas fa-stethoscope"></i> Soins vétérinaires
+                <a href="{{ url_for('create_soin', animal_id=animal.id) }}" class="btn btn-sm btn-light float-end">
+                    <i class="fas fa-plus"></i> Ajouter
+                </a>
+            </div>
+            <div class="card-body">
+                {% if soins %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead class="table-light">
+                                <tr><th>Date</th><th>Type</th><th>Description</th><th>Vétérinaire</th><th>Coût</th><th>Rappel</th></tr>
+                            </thead>
+                            <tbody>
+                                {% for soin in soins %}
+                                <tr>
+                                    <td>{{ soin.date_soin.strftime('%d/%m/%Y') }}</td>
+                                    <td>{{ soin.type_soin }}</td>
+                                    <td>{{ soin.description[:50] }}{% if soin.description and soin.description|length > 50 %}...{% endif %}</td>
+                                    <td>{{ soin.veterinaire or '-' }}</td>
+                                    <td>{{ "%.3f"|format(soin.cout_tnd) if soin.cout_tnd else '-' }} TND</td>
+                                    <td>{% if soin.prochain_rappel %}{{ soin.prochain_rappel.strftime('%d/%m/%Y') }}{% else %}-{% endif %}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">Aucun soin enregistré.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SECTION DES PRODUCTIONS -->
+<div class="row">
+    <div class="col-md-12">
+        <div class="card mb-3">
+            <div class="card-header bg-primary text-white">
+                <i class="fas fa-chart-bar"></i> Productions
+                <a href="{{ url_for('create_production', animal_id=animal.id) }}" class="btn btn-sm btn-light float-end">
+                    <i class="fas fa-plus"></i> Ajouter
+                </a>
+            </div>
+            <div class="card-body">
+                {% if productions %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead class="table-light">
+                                <tr><th>Date</th><th>Type</th><th>Quantité</th><th>Revenu</th></tr>
+                            </thead>
+                            <tbody>
+                                {% for prod in productions %}
+                                <tr>
+                                    <td>{{ prod.date_production.strftime('%d/%m/%Y') }}</td>
+                                    <td>{{ prod.type_produit }}</td>
+                                    <td>{{ prod.quantite }} {{ prod.unite }}</td>
+                                    <td>{{ prod.revenu_total or '-' }} TND</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted">Aucune production enregistrée.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-3 mb-3">
+    <button class="btn btn-primary" onclick="window.print()">Imprimer la fiche</button>
+    <a href="{{ url_for('edit_animal', id=animal.id) }}" class="btn btn-warning">Modifier l'animal</a>
+</div>
+{% endblock %}

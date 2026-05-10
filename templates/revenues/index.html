@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3">
+    <h1 class="h2">📈 Gestion des Revenus</h1>
+    <div class="btn-toolbar">
+        <a href="{{ url_for('create_revenue') }}" class="btn btn-success">
+            <i class="fas fa-plus"></i> Nouvelle vente
+        </a>
+        <button class="btn btn-danger ms-2" onclick="deleteAllRevenues()">
+            <i class="fas fa-trash-alt"></i> Supprimer tous les tests
+        </button>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped table-hover">
+        <thead class="table-success">
+            <tr>
+                <th>Date</th>
+                <th>Culture</th>
+                <th>Quantité</th>
+                <th>Prix unitaire (TND)</th>
+                <th>Revenu total (TND)</th>
+                <th>Client</th>
+                <th>Facture</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if revenues %}
+                {% for revenue in revenues %}
+                <tr class="{% if revenue.revenu_total_tnd > 1000 %}table-warning{% endif %}">
+                    <td>{{ revenue.date_vente.strftime('%d/%m/%Y') }}</td>
+                    <td>{{ revenue.crop.nom_culture if revenue.crop else '-' }}</td>
+                    <td>{{ revenue.quantite_vendue }} {{ revenue.crop.unite if revenue.crop else 'kg' }}</td>
+                    <td class="text-end">{{ "%.3f"|format(revenue.prix_unitaire_tnd) }}</td>
+                    <td class="text-end"><strong>{{ "%.2f"|format(revenue.revenu_total_tnd) }}</strong> TND</td>
+                    <td>{{ revenue.client or '-' }}</td>
+                    <td>{{ revenue.facture_numero or '-' }}</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" onclick="deleteRevenue({{ revenue.id }})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            {% else %}
+                <tr class="text-center">
+                    <td colspan="8">
+                        Aucune vente enregistrée.
+                        <a href="{{ url_for('create_revenue') }}">Ajoutez votre première vente</a>
+                    </td>
+                </tr>
+            {% endif %}
+        </tbody>
+        <tfoot class="table-secondary">
+            <tr class="fw-bold">
+                <th colspan="4">Total des revenus</th>
+                <th class="text-end">{{ "%.2f"|format(revenues|sum(attribute='revenu_total_tnd')) }} TND</th>
+                <th colspan="3"></th>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+
+<script>
+function deleteRevenue(id) {
+    if (confirm('Êtes-vous sûr de vouloir supprimer cette vente ?')) {
+        fetch(`/revenues/delete/${id}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        }).then(response => response.json())
+          .then(data => {
+              if (data.success) {
+                  location.reload();
+              } else {
+                  alert('Erreur: ' + data.error);
+              }
+          });
+    }
+}
+
+function deleteAllRevenues() {
+    if (confirm('⚠️ Attention ! Cela va supprimer TOUS les revenus. Êtes-vous sûr ?')) {
+        fetch('/revenues/delete/all', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        }).then(response => response.json())
+          .then(data => {
+              if (data.success) {
+                  location.reload();
+              } else {
+                  alert('Erreur: ' + data.error);
+              }
+          });
+    }
+}
+</script>
+{% endblock %}

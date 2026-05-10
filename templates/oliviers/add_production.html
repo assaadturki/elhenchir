@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3">
+    <h1 class="h2">📊 Ajouter une production</h1>
+    <div class="btn-toolbar">
+        <a href="{{ url_for('olivier_detail', id=olivier.id) }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Retour
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <i class="fas fa-leaf"></i> Production d'huile d'olive
+                <br>
+                <small class="text-light">Olivier: {{ olivier.numero_arbre or 'Sans numero' }} - {{ olivier.variete or 'Variete inconnue' }}</small>
+            </div>
+            <div class="card-body">
+                <form method="POST" id="productionForm">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="annee" class="form-label">Année de récolte *</label>
+                            <input type="number" class="form-control" id="annee" name="annee" value="{{ now.strftime('%Y') }}" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="date_recolte" class="form-label">Date de récolte</label>
+                            <input type="date" class="form-control" id="date_recolte" name="date_recolte" value="{{ now.strftime('%Y-%m-%d') }}">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="quantite_olives" class="form-label">Quantité d'olives (kg) *</label>
+                            <input type="number" step="0.01" class="form-control" id="quantite_olives" name="quantite_olives" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="taux_hutile" class="form-label">Taux d'huile (%) *</label>
+                            <input type="number" step="0.1" class="form-control" id="taux_hutile" name="taux_hutile" placeholder="18-25" required>
+                            <small class="text-muted">Exemple: 18% = 18 litres pour 100kg d'olives</small>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <i class="fas fa-calculator"></i>
+                        <strong>Production d'huile :</strong>
+                        <h3 id="quantite_huile_estimee" class="d-inline-block ms-2">0.00</h3> litres
+                        <br>
+                        <small>Calcul: (Quantité olives × Taux huile) ÷ 100</small>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="qualite_huile" class="form-label">Qualité de l'huile</label>
+                            <select class="form-control" id="qualite_huile" name="qualite_huile">
+                                <option value="">Sélectionner...</option>
+                                {% for q in qualites %}
+                                <option value="{{ q }}">{{ q }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="acidite" class="form-label">Acidité (%)</label>
+                            <input type="number" step="0.01" class="form-control" id="acidite" name="acidite" placeholder="0.0-2.0">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="prix_huile" class="form-label">Prix de vente (TND/Litre)</label>
+                            <input type="number" step="0.001" class="form-control" id="prix_huile" name="prix_huile" placeholder="0.000">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="client" class="form-label">Client</label>
+                            <input type="text" class="form-control" id="client" name="client" placeholder="Nom du client">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="3" 
+                                  placeholder="Conditions de récolte, rendement, observations..."></textarea>
+                    </div>
+
+                    <div class="alert alert-success">
+                        <i class="fas fa-chart-line"></i>
+                        <strong>Revenu estimé :</strong>
+                        <span id="revenu_estime">0.000</span> TND
+                    </div>
+
+                    <div class="alert alert-warning">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Information :</strong> Le revenu sera automatiquement ajouté à la section "Revenus" de l'application.
+                    </div>
+
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-save"></i> Enregistrer la production
+                    </button>
+                    <a href="{{ url_for('olivier_detail', id=olivier.id) }}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> Annuler
+                    </a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const quantiteInput = document.getElementById('quantite_olives');
+        const tauxInput = document.getElementById('taux_hutile');
+        const prixInput = document.getElementById('prix_huile');
+        const huileSpan = document.getElementById('quantite_huile_estimee');
+        const revenuSpan = document.getElementById('revenu_estime');
+        
+        function calculerHuile() {
+            const quantite = parseFloat(quantiteInput.value) || 0;
+            const taux = parseFloat(tauxInput.value) || 0;
+            const huile = quantite * (taux / 100);
+            huileSpan.textContent = huile.toFixed(2);
+            
+            const prix = parseFloat(prixInput.value) || 0;
+            const revenu = huile * prix;
+            revenuSpan.textContent = revenu.toFixed(3);
+            
+            if (huile > 0) {
+                huileSpan.style.color = 'green';
+                huileSpan.style.fontWeight = 'bold';
+            } else {
+                huileSpan.style.color = 'red';
+            }
+            
+            if (revenu > 0) {
+                revenuSpan.style.color = 'green';
+                revenuSpan.style.fontWeight = 'bold';
+            } else {
+                revenuSpan.style.color = 'black';
+            }
+        }
+        
+        quantiteInput.addEventListener('input', calculerHuile);
+        tauxInput.addEventListener('input', calculerHuile);
+        prixInput.addEventListener('input', calculerHuile);
+        
+        // Ajouter un exemple de taux d'huile par défaut
+        if (!tauxInput.value) {
+            tauxInput.placeholder = "Ex: 18 (pour 18%)";
+        }
+    });
+</script>
+{% endblock %}

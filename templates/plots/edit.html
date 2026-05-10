@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3">
+    <h1 class="h2">✏️ Modifier la Parcelle</h1>
+    <div class="btn-toolbar">
+        <a href="{{ url_for('plots') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Retour
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-header bg-warning">
+                <i class="fas fa-edit"></i> Modifier: {{ plot.nom }}
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="nom" class="form-label">Nom de la parcelle *</label>
+                        <input type="text" class="form-control" id="nom" name="nom" value="{{ plot.nom }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="superficie" class="form-label">Superficie (hectares) *</label>
+                        <input type="number" step="0.01" class="form-control" id="superficie" name="superficie" value="{{ plot.superficie }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="localisation" class="form-label">Localisation</label>
+                        <input type="text" class="form-control" id="localisation" name="localisation" value="{{ plot.localisation or '' }}">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="type_sol" class="form-label">Type de sol</label>
+                        <select class="form-control" id="type_sol" name="type_sol">
+                            <option value="">Sélectionner...</option>
+                            <option value="Argileux" {% if plot.type_sol == 'Argileux' %}selected{% endif %}>Argileux</option>
+                            <option value="Sableux" {% if plot.type_sol == 'Sableux' %}selected{% endif %}>Sableux</option>
+                            <option value="Limoneux" {% if plot.type_sol == 'Limoneux' %}selected{% endif %}>Limoneux</option>
+                            <option value="Calcaire" {% if plot.type_sol == 'Calcaire' %}selected{% endif %}>Calcaire</option>
+                            <option value="Humifère" {% if plot.type_sol == 'Humifère' %}selected{% endif %}>Humifère</option>
+                            <option value="Salin" {% if plot.type_sol == 'Salin' %}selected{% endif %}>Salin</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="irrigation" class="form-label">Type d'irrigation</label>
+                        <select class="form-control" id="irrigation" name="irrigation">
+                            <option value="">Sélectionner...</option>
+                            <option value="Goutte à goutte" {% if plot.irrigation == 'Goutte à goutte' %}selected{% endif %}>Goutte à goutte</option>
+                            <option value="Aspersion" {% if plot.irrigation == 'Aspersion' %}selected{% endif %}>Aspersion</option>
+                            <option value="Gravitaire" {% if plot.irrigation == 'Gravitaire' %}selected{% endif %}>Gravitaire</option>
+                            <option value="Pivot" {% if plot.irrigation == 'Pivot' %}selected{% endif %}>Pivot</option>
+                            <option value="Pluviale" {% if plot.irrigation == 'Pluviale' %}selected{% endif %}>Pluviale (non irrigué)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="statut" class="form-label">Statut</label>
+                        <select class="form-control" id="statut" name="statut">
+                            <option value="active" {% if plot.statut == 'active' %}selected{% endif %}>Active</option>
+                            <option value="en_repos" {% if plot.statut == 'en_repos' %}selected{% endif %}>En repos</option>
+                            <option value="en_preparation" {% if plot.statut == 'en_preparation' %}selected{% endif %}>En préparation</option>
+                            <option value="abandonnee" {% if plot.statut == 'abandonnee' %}selected{% endif %}>Abandonnée</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-save"></i> Mettre à jour
+                    </button>
+                    <a href="{{ url_for('plots') }}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> Annuler
+                    </a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

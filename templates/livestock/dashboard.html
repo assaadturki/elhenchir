@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Elevage - Dashboard</h2>
+<div class="row">
+    <div class="col-md-3"><div class="card bg-primary text-white"><div class="card-body"><h5>Total Animaux</h5><h2>{{ total_animaux }}</h2></div></div></div>
+    <div class="col-md-3"><div class="card bg-success text-white"><div class="card-body"><h5>Actifs</h5><h2>{{ animaux_actifs }}</h2></div></div></div>
+    <div class="col-md-3"><div class="card bg-warning text-white"><div class="card-body"><h5>Vendus</h5><h2>{{ animaux_vendus }}</h2></div></div></div>
+    <div class="col-md-3"><div class="card bg-info text-white"><div class="card-body"><h5>Production Mois</h5><h2>{{ "%.0f"|format(production_mensuelle) }} TND</h2></div></div></div>
+</div>
+<div class="mt-3">
+    <a href="{{ url_for('animals') }}" class="btn btn-primary">Liste Animaux</a>
+    <a href="{{ url_for('animal_types') }}" class="btn btn-secondary">Types</a>
+    <a href="{{ url_for('alimentations') }}" class="btn btn-success">Alimentation</a>
+</div>
+{% endblock %}

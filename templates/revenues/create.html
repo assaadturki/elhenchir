@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3">
+    <h1 class="h2">💰 Ajouter un Revenu</h1>
+    <div class="btn-toolbar">
+        <a href="{{ url_for('revenues') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Retour
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <i class="fas fa-chart-line"></i> Nouvelle vente
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="culture_id" class="form-label">Culture *</label>
+                        <select class="form-control" id="culture_id" name="culture_id" required>
+                            <option value="">Sélectionner une culture...</option>
+                            {% for crop in crops %}
+                            <option value="{{ crop.id }}">
+                                {{ crop.nom_culture }} - {{ crop.plot.nom if crop.plot else 'Parcelle inconnue' }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="quantite_vendue" class="form-label">Quantité vendue *</label>
+                            <input type="number" step="0.01" class="form-control" id="quantite_vendue" name="quantite_vendue" required>
+                            <small class="text-muted">Quantité en kg ou unités</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="prix_unitaire_tnd" class="form-label">Prix unitaire (TND) *</label>
+                            <input type="number" step="0.001" class="form-control" id="prix_unitaire_tnd" name="prix_unitaire_tnd" required>
+                            <small class="text-muted">Prix par kg ou par unité</small>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <i class="fas fa-calculator"></i>
+                        <strong>Revenu total :</strong>
+                        <span id="revenuTotal">0.000</span> TND
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="date_vente" class="form-label">Date de vente *</label>
+                            <input type="date" class="form-control" id="date_vente" name="date_vente" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="client" class="form-label">Client</label>
+                            <input type="text" class="form-control" id="client" name="client" placeholder="Nom du client">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="facture_numero" class="form-label">N° Facture</label>
+                            <input type="text" class="form-control" id="facture_numero" name="facture_numero" placeholder="Référence facture">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="3" 
+                                  placeholder="Informations complémentaires sur la vente..."></textarea>
+                    </div>
+
+                    <div class="alert alert-success">
+                        <i class="fas fa-chart-simple"></i>
+                        <strong>Information :</strong> Le revenu sera automatiquement pris en compte dans le calcul des bénéfices.
+                    </div>
+
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-save"></i> Enregistrer
+                    </button>
+                    <a href="{{ url_for('revenues') }}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> Annuler
+                    </a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <i class="fas fa-lightbulb"></i> Conseils de vente
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <h6>📝 Documentation</h6>
+                        <p class="small">Conservez vos factures et bons de livraison pour justifier les revenus.</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h6>💰 Prix du marché</h6>
+                        <p class="small">Renseignez-vous sur les prix du marché pour optimiser vos ventes.</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h6>📊 Suivi client</h6>
+                        <p class="small">Enregistrez vos clients fidèles pour un meilleur suivi commercial.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Calcul automatique du revenu total
+    document.addEventListener('DOMContentLoaded', function() {
+        const quantiteInput = document.getElementById('quantite_vendue');
+        const prixInput = document.getElementById('prix_unitaire_tnd');
+        const revenuSpan = document.getElementById('revenuTotal');
+        
+        function calculerRevenu() {
+            const quantite = parseFloat(quantiteInput.value) || 0;
+            const prix = parseFloat(prixInput.value) || 0;
+            const revenu = quantite * prix;
+            revenuSpan.textContent = revenu.toFixed(3);
+            
+            // Changer la couleur selon le montant
+            if (revenu > 1000) {
+                revenuSpan.style.color = 'green';
+                revenuSpan.style.fontWeight = 'bold';
+            } else if (revenu > 500) {
+                revenuSpan.style.color = 'orange';
+            } else {
+                revenuSpan.style.color = 'black';
+            }
+        }
+        
+        quantiteInput.addEventListener('input', calculerRevenu);
+        prixInput.addEventListener('input', calculerRevenu);
+        
+        // Mettre la date par défaut
+        const today = new Date().toISOString().split('T')[0];
+        const dateInput = document.getElementById('date_vente');
+        if (!dateInput.value) {
+            dateInput.value = today;
+        }
+    });
+</script>
+{% endblock %}

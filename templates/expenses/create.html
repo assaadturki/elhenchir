@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Ajouter une depense</h2>
+<div class="row">
+    <div class="col-md-6">
+        <form method="POST">
+            <div class="mb-3"><label>Categorie</label>
+                <select name="categorie" class="form-control" required>
+                    {% for cat in categories %}<option value="{{ cat }}">{{ cat }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="mb-3"><label>Montant (TND)</label><input type="number" step="0.001" name="montant_tnd" class="form-control" required></div>
+            <div class="mb-3"><label>Date</label><input type="date" name="date_depense" class="form-control" value="{{ now.strftime('%Y-%m-%d') }}" required></div>
+            <div class="mb-3"><label>Description</label><textarea name="description" class="form-control"></textarea></div>
+            <div class="mb-3"><label>Parcelle</label>
+                <select name="parcelle_id" class="form-control"><option value="">Aucune</option>{% for plot in plots %}<option value="{{ plot.id }}">{{ plot.nom }}</option>{% endfor %}</select>
+            </div>
+            <button type="submit" class="btn btn-danger">Enregistrer</button>
+            <a href="{{ url_for('expenses') }}" class="btn btn-secondary">Annuler</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

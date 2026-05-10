@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Ajouter Employe</h2>
+<div class="row"><div class="col-md-6">
+    <form method="POST">
+        <div class="mb-3"><label>Nom</label><input type="text" name="nom" class="form-control" required></div>
+        <div class="mb-3"><label>Prenom</label><input type="text" name="prenom" class="form-control"></div>
+        <div class="mb-3"><label>Telephone</label><input type="tel" name="telephone" class="form-control"></div>
+        <div class="mb-3"><label>Email</label><input type="email" name="email" class="form-control"></div>
+        <div class="mb-3"><label>Poste</label><input type="text" name="poste" class="form-control"></div>
+        <div class="mb-3"><label>Salaire (TND)</label><input type="number" step="0.01" name="salaire_tnd" class="form-control"></div>
+        <div class="mb-3"><label>Date embauche</label><input type="date" name="date_embauche" class="form-control"></div>
+        <button type="submit" class="btn btn-success">Enregistrer</button>
+        <a href="{{ url_for('employees') }}" class="btn btn-secondary">Annuler</a>
+    </form>
+</div></div>
+{% endblock %}

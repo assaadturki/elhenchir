@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Modifier Animal</h2>
+<form method="POST"><div class="row"><div class="col-md-6">
+    <div class="mb-3"><label>Type</label><select name="type_id" class="form-control">{% for t in types %}<option value="{{ t.id }}" {% if animal.type_id==t.id %}selected{% endif %}>{{ t.nom }}</option>{% endfor %}</select></div>
+    <div class="mb-3"><label>Nom</label><input type="text" name="nom" value="{{ animal.nom or '' }}" class="form-control"></div>
+    <div class="mb-3"><label>Sexe</label><select name="sexe" class="form-control"><option value="Male" {% if animal.sexe=='Male' %}selected{% endif %}>Male</option><option value="Femelle" {% if animal.sexe=='Femelle' %}selected{% endif %}>Femelle</option></select></div>
+    <div class="mb-3"><label>Statut</label><select name="statut" class="form-control"><option value="actif" {% if animal.statut=='actif' %}selected{% endif %}>Actif</option><option value="vendu" {% if animal.statut=='vendu' %}selected{% endif %}>Vendu</option></select></div>
+    <button type="submit" class="btn btn-warning">Modifier</button>
+    <a href="{{ url_for('animals') }}" class="btn btn-secondary">Retour</a>
+</div></div></form>
+{% endblock %}

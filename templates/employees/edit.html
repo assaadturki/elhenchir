@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Modifier Employe</h2>
+<div class="row"><div class="col-md-6">
+    <form method="POST">
+        <div class="mb-3"><label>Nom</label><input type="text" name="nom" value="{{ employee.nom }}" class="form-control" required></div>
+        <div class="mb-3"><label>Prenom</label><input type="text" name="prenom" value="{{ employee.prenom or '' }}" class="form-control"></div>
+        <div class="mb-3"><label>Telephone</label><input type="tel" name="telephone" value="{{ employee.telephone or '' }}" class="form-control"></div>
+        <div class="mb-3"><label>Email</label><input type="email" name="email" value="{{ employee.email or '' }}" class="form-control"></div>
+        <div class="mb-3"><label>Poste</label><input type="text" name="poste" value="{{ employee.poste or '' }}" class="form-control"></div>
+        <div class="mb-3"><label>Salaire (TND)</label><input type="number" step="0.01" name="salaire_tnd" value="{{ employee.salaire_tnd or '' }}" class="form-control"></div>
+        <div class="mb-3"><label>Statut</label><select name="statut" class="form-control"><option value="actif" {% if employee.statut=='actif' %}selected{% endif %}>Actif</option><option value="inactif" {% if employee.statut=='inactif' %}selected{% endif %}>Inactif</option></select></div>
+        <button type="submit" class="btn btn-warning">Modifier</button>
+        <a href="{{ url_for('employees') }}" class="btn btn-secondary">Annuler</a>
+    </form>
+</div></div>
+{% endblock %}

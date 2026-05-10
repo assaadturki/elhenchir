@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3">
+    <h1 class="h2">🌱 Ajouter une Culture</h1>
+    <div class="btn-toolbar">
+        <a href="{{ url_for('crops') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Retour
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <i class="fas fa-seedling"></i> Nouvelle culture
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="parcelle_id" class="form-label">Parcelle *</label>
+                        <select class="form-control" id="parcelle_id" name="parcelle_id" required>
+                            <option value="">Sélectionner une parcelle...</option>
+                            {% for plot in plots %}
+                            <option value="{{ plot.id }}">{{ plot.nom }} ({{ plot.superficie }} ha)</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="nom_culture" class="form-label">Nom de la culture *</label>
+                        <input type="text" class="form-control" id="nom_culture" name="nom_culture" required>
+                        <small class="text-muted">Ex: Blé dur, Orge, Tomates, Pommes de terre, etc.</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="variete" class="form-label">Variété</label>
+                        <input type="text" class="form-control" id="variete" name="variete">
+                        <small class="text-muted">Ex: Mahmoudi, Razzek, etc.</small>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="date_semis" class="form-label">Date de semis *</label>
+                            <input type="date" class="form-control" id="date_semis" name="date_semis" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="date_recolte_prevue" class="form-label">Date récolte prévue</label>
+                            <input type="date" class="form-control" id="date_recolte_prevue" name="date_recolte_prevue">
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="quantite_estimee" class="form-label">Quantité estimée</label>
+                            <input type="number" step="0.01" class="form-control" id="quantite_estimee" name="quantite_estimee">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="unite" class="form-label">Unité</label>
+                            <select class="form-control" id="unite" name="unite">
+                                <option value="kg">kg</option>
+                                <option value="tonnes">tonnes</option>
+                                <option value="quintaux">quintaux</option>
+                                <option value="pieces">pièces</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="3" 
+                                  placeholder="Informations complémentaires sur la culture..."></textarea>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Conseil :</strong> Renseignez la date de récolte prévue pour recevoir des rappels automatiques.
+                    </div>
+                    
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-save"></i> Enregistrer
+                    </button>
+                    <a href="{{ url_for('crops') }}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> Annuler
+                    </a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <i class="fas fa-lightbulb"></i> Exemples de cultures
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <h6>Céréales</h6>
+                        <ul class="small">
+                            <li>Blé dur</li>
+                            <li>Blé tendre</li>
+                            <li>Orge</li>
+                            <li>Avoine</li>
+                            <li>Maïs</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-3">
+                        <h6>Légumineuses</h6>
+                        <ul class="small">
+                            <li>Pois chiche</li>
+                            <li>Lentille</li>
+                            <li>Fève</li>
+                            <li>Haricot</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-3">
+                        <h6>Maraîchage</h6>
+                        <ul class="small">
+                            <li>Tomate</li>
+                            <li>Pomme de terre</li>
+                            <li>Oignon</li>
+                            <li>Carotte</li>
+                            <li>Poivron</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-3">
+                        <h6>Arboriculture</h6>
+                        <ul class="small">
+                            <li>Olivier</li>
+                            <li>Amandier</li>
+                            <li>Pêcher</li>
+                            <li>Pommier</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Mettre la date de semis par défaut aujourd'hui
+    document.addEventListener('DOMContentLoaded', function() {
+        const today = new Date().toISOString().split('T')[0];
+        const semisInput = document.getElementById('date_semis');
+        if (!semisInput.value) {
+            semisInput.value = today;
+        }
+        
+        // Calculer date récolte par défaut (3 mois après)
+        const recolteInput = document.getElementById('date_recolte_prevue');
+        if (!recolteInput.value) {
+            const date = new Date();
+            date.setMonth(date.getMonth() + 3);
+            recolteInput.value = date.toISOString().split('T')[0];
+        }
+    });
+</script>
+{% endblock %}

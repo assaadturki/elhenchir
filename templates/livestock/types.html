@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between"><h2>Types d'animaux</h2><a href="{{ url_for('create_animal_type') }}" class="btn btn-success">+ Nouveau</a></div>
+<div class="row">{% for type in types %}<div class="col-md-4"><div class="card mb-3"><div class="card-header bg-info">{{ type.nom }}</div><div class="card-body"><p>Categorie: {{ type.categorie }}</p><p>{{ type.description[:100] or '' }}</p></div></div></div>{% endfor %}</div>
+{% endblock %}

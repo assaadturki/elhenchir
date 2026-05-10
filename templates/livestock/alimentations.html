@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3">
+    <h1 class="h2">🍽️ Alimentation des animaux</h1>
+    <div class="btn-toolbar">
+        <a href="{{ url_for('create_alimentation') }}" class="btn btn-success">
+            <i class="fas fa-plus"></i> Nouvelle alimentation
+        </a>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped table-hover">
+        <thead class="table-success">
+            <tr>
+                <th>Date</th>
+                <th>Animal</th>
+                <th>Type nourriture</th>
+                <th>Quantité</th>
+                <th>Coût (TND)</th>
+                <th>Notes</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if alimentations %}
+                {% for aliment in alimentations %}
+                <tr>
+                    <td>{{ aliment.date_alimentation.strftime('%d/%m/%Y') }}</td>
+                    <td>{% if aliment.animal %}{{ aliment.animal.nom or aliment.animal.numero_identification or '-' }}{% else %}-{% endif %}</td>
+                    <td>{{ aliment.type_nourriture }}</td>
+                    <td>{{ aliment.quantite }} {{ aliment.unite }}</td>
+                    <td>{{ "%.3f"|format(aliment.cout_tnd) if aliment.cout_tnd else '-' }} TND</td>
+                    <td>{{ aliment.notes[:50] if aliment.notes else '-' }}</td>
+                </tr>
+                {% endfor %}
+            {% else %}
+                <tr class="text-center">
+                    <td colspan="6">Aucune alimentation enregistrée</td>
+                </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

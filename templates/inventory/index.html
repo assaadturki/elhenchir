@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between pt-3 pb-2 mb-3">
+    <h1 class="h2">Stock</h1>
+    <a href="{{ url_for('create_inventory') }}" class="btn btn-success"><i class="fas fa-plus"></i> Ajouter Produit</a>
+</div>
+<table class="table table-striped">
+    <thead><tr><th>Produit</th><th>Categorie</th><th>Quantite</th><th>Seuil</th><th>Statut</th><th>Actions</th></tr></thead>
+    <tbody>
+        {% for item in items %}
+        <tr class="{% if item.quantite <= item.seuil_alerte %}table-warning{% endif %}">
+            <td>{{ item.produit }}</td>
+            <td>{{ item.categorie or '-' }}</td>
+            <td>{{ item.quantite }} {{ item.unite }}</td>
+            <td>{{ item.seuil_alerte }}</td>
+            <td>{% if item.quantite <= item.seuil_alerte %}<span class="badge bg-danger">Stock faible</span>{% else %}<span class="badge bg-success">OK</span>{% endif %}</td>
+            <td><button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#movementModal{{ item.id }}">Mouvement</button></td>
+        </tr>
+        <div class="modal fade" id="movementModal{{ item.id }}">
+            <div class="modal-dialog"><div class="modal-content">
+                <div class="modal-header"><h5>Mouvement - {{ item.produit }}</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <form method="POST" action="{{ url_for('add_movement', id=item.id) }}">
+                    <div class="modal-body">
+                        <select name="type_mouvement" class="form-control mb-2"><option value="entree">Entree</option><option value="sortie">Sortie</option></select>
+                        <input type="number" step="0.01" name="quantite" placeholder="Quantite" class="form-control mb-2" required>
+                        <textarea name="raison" placeholder="Raison" class="form-control" required></textarea>
+                    </div>
+                    <div class="modal-footer"><button type="submit" class="btn btn-primary">Valider</button></div>
+                </form>
+            </div></div>
+        </div>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

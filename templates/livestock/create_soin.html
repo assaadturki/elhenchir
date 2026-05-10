@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Ajouter Soin - {{ animal.nom or animal.numero_identification }}</h2>
+<form method="POST"><div class="col-md-6">
+    <div class="mb-3"><label>Date</label><input type="date" name="date_soin" class="form-control" value="{{ now.strftime('%Y-%m-%d') }}" required></div>
+    <div class="mb-3"><label>Type</label><select name="type_soin" class="form-control">{% for t in types_soin %}<option value="{{ t }}">{{ t }}</option>{% endfor %}</select></div>
+    <div class="mb-3"><label>Description</label><textarea name="description" class="form-control" required></textarea></div>
+    <div class="mb-3"><label>Veterinaire</label><input type="text" name="veterinaire" class="form-control"></div>
+    <div class="mb-3"><label>Cout (TND)</label><input type="number" step="0.001" name="cout_tnd" class="form-control"></div>
+    <div class="mb-3"><label>Prochain rappel</label><input type="date" name="prochain_rappel" class="form-control"></div>
+    <button type="submit" class="btn btn-info">Enregistrer</button>
+    <a href="{{ url_for('animal_detail', id=animal.id) }}" class="btn btn-secondary">Retour</a>
+</div></form>
+{% endblock %}

@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Creer Type Animal</h2>
+<form method="POST"><div class="col-md-6">
+    <div class="mb-3"><label>Nom</label><input type="text" name="nom" class="form-control" required></div>
+    <div class="mb-3"><label>Categorie</label><select name="categorie" class="form-control"><option value="Bovin">Bovin</option><option value="Ovin">Ovin</option><option value="Caprin">Caprin</option><option value="Volailles">Volailles</option></select></div>
+    <div class="mb-3"><label>Description</label><textarea name="description" class="form-control"></textarea></div>
+    <button type="submit" class="btn btn-success">Creer</button>
+    <a href="{{ url_for('animal_types') }}" class="btn btn-secondary">Annuler</a>
+</div></form>
+{% endblock %}

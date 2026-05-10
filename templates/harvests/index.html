@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between pt-3 pb-2 mb-3">
+    <h1 class="h2">Recoltes</h1>
+    <button class="btn btn-success" onclick="exportHarvests()"><i class="fas fa-file-excel"></i> Exporter</button>
+</div>
+<table class="table table-striped" id="harvestsTable">
+    <thead class="table-warning"><tr><th>Date</th><th>Culture</th><th>Parcelle</th><th>Quantite</th><th>Qualite</th><th>Pertes</th><th>Actions</th></tr></thead>
+    <tbody>
+        {% for harvest in harvests %}
+        <tr><td>{{ harvest.date_recolte.strftime('%d/%m/%Y') }}</td>
+            <td>{{ harvest.crop.nom_culture if harvest.crop else '-' }}</td>
+            <td>{{ harvest.crop.plot.nom if harvest.crop and harvest.crop.plot else '-' }}</td>
+            <td>{{ harvest.quantite_recoltee }} {{ harvest.unite }}</td>
+            <td><span class="badge bg-success">{{ harvest.qualite or '-' }}</span></td>
+            <td>{{ harvest.pertes }}%</td>
+            <td>
+                <a href="{{ url_for('harvests_detail', id=harvest.id) }}" class="btn btn-info btn-sm"><i class="fas fa-eye"></i></a>
+                <button class="btn btn-danger btn-sm" onclick="deleteHarvest({{ harvest.id }})"><i class="fas fa-trash"></i></button>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<script>
+function deleteHarvest(id){ if(confirm('Supprimer?')){ fetch(`/harvests/delete/${id}`,{method:'POST'}).then(()=>location.reload()); } }
+function exportHarvests(){ window.location.href="{{ url_for('harvests_export') }}"; }
+</script>
+{% endblock %}

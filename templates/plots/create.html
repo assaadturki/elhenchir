@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3">
+    <h1 class="h2">🗺️ Ajouter une Parcelle</h1>
+    <div class="btn-toolbar">
+        <a href="{{ url_for('plots') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Retour
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <i class="fas fa-map-marker-alt"></i> Nouvelle parcelle
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="nom" class="form-label">Nom de la parcelle *</label>
+                        <input type="text" class="form-control" id="nom" name="nom" required>
+                        <small class="text-muted">Ex: Parcelle Nord, Champ de blé, Jardin Sud, etc.</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="superficie" class="form-label">Superficie (hectares) *</label>
+                        <input type="number" step="0.01" class="form-control" id="superficie" name="superficie" required>
+                        <small class="text-muted">Surface en hectares (ha)</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="localisation" class="form-label">Localisation</label>
+                        <input type="text" class="form-control" id="localisation" name="localisation">
+                        <small class="text-muted">Ex: Zone agricole de Mornag, Région de Béja, etc.</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="type_sol" class="form-label">Type de sol</label>
+                        <select class="form-control" id="type_sol" name="type_sol">
+                            <option value="">Sélectionner un type de sol...</option>
+                            <option value="Argileux">🏺 Argileux</option>
+                            <option value="Sableux">🏖️ Sableux</option>
+                            <option value="Limoneux">🌾 Limoneux</option>
+                            <option value="Calcaire">🪨 Calcaire</option>
+                            <option value="Humifère">🌿 Humifère</option>
+                            <option value="Salin">🧂 Salin</option>
+                            <option value="Tourbeux">💧 Tourbeux</option>
+                            <option value="Latéritique">🔴 Latéritique</option>
+                        </select>
+                        <small class="text-muted">Type de sol de la parcelle</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="irrigation" class="form-label">Type d'irrigation</label>
+                        <select class="form-control" id="irrigation" name="irrigation">
+                            <option value="">Sélectionner un type d'irrigation...</option>
+                            <option value="Goutte à goutte">💧 Goutte à goutte</option>
+                            <option value="Aspersion">💦 Aspersion</option>
+                            <option value="Gravitaire">🚿 Gravitaire (par canaux)</option>
+                            <option value="Pivot">🔄 Pivot central</option>
+                            <option value="Pluviale">☔ Pluviale (non irrigué)</option>
+                            <option value="Micro-aspersion">🌊 Micro-aspersion</option>
+                            <option value="Subsurface">🌍 Subsurface</option>
+                        </select>
+                        <small class="text-muted">Système d'irrigation utilisé</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="statut" class="form-label">Statut</label>
+                        <select class="form-control" id="statut" name="statut">
+                            <option value="active">🟢 Active</option>
+                            <option value="en_repos">🟡 En repos</option>
+                            <option value="en_preparation">🟠 En préparation</option>
+                            <option value="abandonnee">🔴 Abandonnée</option>
+                        </select>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Conseil :</strong> Renseignez le type de sol et l'irrigation pour un meilleur suivi des cultures adaptées.
+                    </div>
+                    
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-save"></i> Enregistrer
+                    </button>
+                    <a href="{{ url_for('plots') }}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> Annuler
+                    </a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <i class="fas fa-lightbulb"></i> Guide des types de sol
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <h6>🏺 Argileux</h6>
+                        <p class="small">Riche en nutriments, bonne rétention d'eau. Idéal pour céréales et légumineuses.</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h6>🏖️ Sableux</h6>
+                        <p class="small">Drainage rapide, facile à travailler. Nécessite irrigation fréquente.</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h6>🌾 Limoneux</h6>
+                        <p class="small">Sol équilibré, fertile. Idéal pour la plupart des cultures.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

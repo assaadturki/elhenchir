@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3">
+    <h1 class="h2">✏️ Modifier la Culture</h1>
+    <div class="btn-toolbar">
+        <a href="{{ url_for('crops') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Retour
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card">
+            <div class="card-header bg-warning">
+                <i class="fas fa-edit"></i> Modifier: {{ crop.nom_culture }}
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="parcelle_id" class="form-label">Parcelle *</label>
+                        <select class="form-control" id="parcelle_id" name="parcelle_id" required>
+                            {% for plot in plots %}
+                            <option value="{{ plot.id }}" {% if crop.parcelle_id == plot.id %}selected{% endif %}>
+                                {{ plot.nom }} ({{ plot.superficie }} ha)
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="nom_culture" class="form-label">Nom de la culture *</label>
+                        <input type="text" class="form-control" id="nom_culture" name="nom_culture" value="{{ crop.nom_culture }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="variete" class="form-label">Variété</label>
+                        <input type="text" class="form-control" id="variete" name="variete" value="{{ crop.variete or '' }}">
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="date_semis" class="form-label">Date de semis *</label>
+                            <input type="date" class="form-control" id="date_semis" name="date_semis" value="{{ crop.date_semis.strftime('%Y-%m-%d') }}" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="date_recolte_prevue" class="form-label">Date récolte prévue</label>
+                            <input type="date" class="form-control" id="date_recolte_prevue" name="date_recolte_prevue" value="{{ crop.date_recolte_prevue.strftime('%Y-%m-%d') if crop.date_recolte_prevue else '' }}">
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="quantite_estimee" class="form-label">Quantité estimée</label>
+                            <input type="number" step="0.01" class="form-control" id="quantite_estimee" name="quantite_estimee" value="{{ crop.quantite_estimee or '' }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="unite" class="form-label">Unité</label>
+                            <select class="form-control" id="unite" name="unite">
+                                <option value="kg" {% if crop.unite == 'kg' %}selected{% endif %}>kg</option>
+                                <option value="tonnes" {% if crop.unite == 'tonnes' %}selected{% endif %}>tonnes</option>
+                                <option value="quintaux" {% if crop.unite == 'quintaux' %}selected{% endif %}>quintaux</option>
+                                <option value="pieces" {% if crop.unite == 'pieces' %}selected{% endif %}>pièces</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="statut" class="form-label">Statut</label>
+                        <select class="form-control" id="statut" name="statut">
+                            <option value="planifie" {% if crop.statut == 'planifie' %}selected{% endif %}>📅 Planifié</option>
+                            <option value="en_cours" {% if crop.statut == 'en_cours' %}selected{% endif %}>🌱 En cours</option>
+                            <option value="recolte" {% if crop.statut == 'recolte' %}selected{% endif %}>🌾 Récolté</option>
+                            <option value="abandonne" {% if crop.statut == 'abandonne' %}selected{% endif %}>❌ Abandonné</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="3">{{ crop.notes or '' }}</textarea>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-save"></i> Mettre à jour
+                    </button>
+                    <a href="{{ url_for('crops') }}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> Annuler
+                    </a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

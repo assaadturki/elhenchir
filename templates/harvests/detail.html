@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Detail Recolte</h2>
+<div class="card"><div class="card-body">
+    <p><strong>Culture:</strong> {{ harvest.crop.nom_culture if harvest.crop else '-' }}</p>
+    <p><strong>Parcelle:</strong> {{ harvest.crop.plot.nom if harvest.crop and harvest.crop.plot else '-' }}</p>
+    <p><strong>Date recolte:</strong> {{ harvest.date_recolte.strftime('%d/%m/%Y') }}</p>
+    <p><strong>Quantite:</strong> {{ harvest.quantite_recoltee }} {{ harvest.unite }}</p>
+    <p><strong>Qualite:</strong> {{ harvest.qualite or '-' }}</p>
+    <p><strong>Pertes:</strong> {{ harvest.pertes }}%</p>
+    <p><strong>Quantite nette:</strong> {{ (harvest.quantite_recoltee * (1 - harvest.pertes/100))|round(2) }} {{ harvest.unite }}</p>
+    <p><strong>Main d'oeuvre:</strong> {{ harvest.main_doeuvre or '-' }} personnes</p>
+    <p><strong>Notes:</strong> {{ harvest.notes or '-' }}</p>
+    <a href="{{ url_for('harvests') }}" class="btn btn-secondary">Retour</a>
+</div></div>
+{% endblock %}

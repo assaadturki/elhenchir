@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between pt-3 pb-2 mb-3">
+    <h1 class="h2">Cultures</h1>
+    <a href="{{ url_for('create_crop') }}" class="btn btn-success"><i class="fas fa-plus"></i> Nouvelle Culture</a>
+</div>
+<table class="table table-striped">
+    <thead><tr><th>Culture</th><th>Parcelle</th><th>Date semis</th><th>Recolte prevue</th><th>Statut</th><th>Actions</th></tr></thead>
+    <tbody>
+        {% for crop in crops %}
+        <tr>
+            <td>{{ crop.nom_culture }}</td>
+            <td>{{ crop.plot.nom if crop.plot else '-' }}</td>
+            <td>{{ crop.date_semis.strftime('%d/%m/%Y') }}</td>
+            <td>{{ crop.date_recolte_prevue.strftime('%d/%m/%Y') if crop.date_recolte_prevue else '-' }}</td>
+            <td><span class="badge bg-primary">{{ crop.statut }}</span></td>
+            <td>
+                <a href="{{ url_for('edit_crop', id=crop.id) }}" class="btn btn-primary btn-sm">Modifier</a>
+                {% if crop.statut != 'recolte' %}
+                <a href="{{ url_for('harvests_create', crop_id=crop.id) }}" class="btn btn-warning btn-sm">Recolter</a>
+                {% endif %}
+                <button class="btn btn-danger btn-sm" onclick="deleteCrop({{ crop.id }})">Supprimer</button>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<script>
+function deleteCrop(id) {
+    if(confirm('Supprimer cette culture?')){
+        fetch(`/crops/delete/${id}`, {method:'POST'}).then(()=>location.reload());
+    }
+}
+</script>
+{% endblock %}

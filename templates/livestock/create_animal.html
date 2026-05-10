@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Ajouter Animal</h2>
+<form method="POST"><div class="row"><div class="col-md-6">
+    <div class="mb-3"><label>Type</label><select name="type_id" class="form-control" required>{% for t in types %}<option value="{{ t.id }}">{{ t.nom }}</option>{% endfor %}</select></div>
+    <div class="mb-3"><label>Numero identification</label><input type="text" name="numero_identification" class="form-control"></div>
+    <div class="mb-3"><label>Nom</label><input type="text" name="nom" class="form-control"></div>
+    <div class="mb-3"><label>Sexe</label><select name="sexe" class="form-control"><option value="Male">Male</option><option value="Femelle">Femelle</option></select></div>
+    <div class="mb-3"><label>Race</label><input type="text" name="race" class="form-control"></div>
+    <div class="mb-3"><label>Date naissance</label><input type="date" name="date_naissance" class="form-control"></div>
+    <div class="mb-3"><label>Poids naissance (kg)</label><input type="number" step="0.1" name="poids_naissance" class="form-control"></div>
+    <div class="mb-3"><label>Parcelle</label><select name="parcelle_id" class="form-control"><option value="">Aucune</option>{% for p in plots %}<option value="{{ p.id }}">{{ p.nom }}</option>{% endfor %}</select></div>
+    <button type="submit" class="btn btn-success">Enregistrer</button>
+    <a href="{{ url_for('animals') }}" class="btn btn-secondary">Annuler</a>
+</div></div></form>
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between pt-3 pb-2 mb-3">
+    <h1 class="h2">Depenses</h1>
+    <a href="{{ url_for('create_expense') }}" class="btn btn-danger"><i class="fas fa-plus"></i> Nouvelle Depense</a>
+</div>
+<table class="table table-striped">
+    <thead><tr><th>Date</th><th>Categorie</th><th>Montant (TND)</th><th>Description</th><th>Parcelle</th></tr></thead>
+    <tbody>
+        {% for expense in expenses %}
+        <tr>
+            <td>{{ expense.date_depense.strftime('%d/%m/%Y') }}</td>
+            <td>{{ expense.categorie }}</td>
+            <td>{{ "%.3f"|format(expense.montant_tnd) }}</td>
+            <td>{{ expense.description[:50] or '-' }}</td>
+            <td>{{ expense.plot.nom if expense.plot else '-' }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+    <tfoot><tr class="fw-bold"><td colspan="2">Total</td><td>{{ "%.3f"|format(expenses|sum(attribute='montant_tnd')) }} TND</td><td colspan="2"></td></tr></tfoot>
+</table>
+{% endblock %}

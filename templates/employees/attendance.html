@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Presence - {{ employee.nom }} {{ employee.prenom }}</h2>
+<div class="row"><div class="col-md-6">
+    <form method="POST">
+        <div class="mb-3"><label>Date</label><input type="date" name="date" class="form-control" required></div>
+        <div class="mb-3"><label>Heure arrivee</label><input type="time" name="heure_arrivee" class="form-control"></div>
+        <div class="mb-3"><label>Heure depart</label><input type="time" name="heure_depart" class="form-control"></div>
+        <div class="mb-3"><label>Statut</label><select name="statut" class="form-control"><option value="present">Present</option><option value="absent">Absent</option><option value="retard">Retard</option></select></div>
+        <button type="submit" class="btn btn-primary">Enregistrer</button>
+        <a href="{{ url_for('employees') }}" class="btn btn-secondary">Retour</a>
+    </form>
+</div></div>
+{% endblock %}

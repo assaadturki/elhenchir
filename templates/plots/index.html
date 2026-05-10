@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between pt-3 pb-2 mb-3">
+    <h1 class="h2">Parcelles</h1>
+    <a href="{{ url_for('create_plot') }}" class="btn btn-success"><i class="fas fa-plus"></i> Nouvelle Parcelle</a>
+</div>
+<div class="row">
+    {% if plots %}
+        {% for plot in plots %}
+        <div class="col-md-4 mb-3">
+            <div class="card">
+                <div class="card-header bg-success text-white">{{ plot.nom }}</div>
+                <div class="card-body">
+                    <p>Superficie: {{ plot.superficie }} ha</p>
+                    <p>Localisation: {{ plot.localisation or '-' }}</p>
+                    <p>Type sol: {{ plot.type_sol or '-' }}</p>
+                    <p>Irrigation: {{ plot.irrigation or '-' }}</p>
+                </div>
+                <div class="card-footer">
+                    <a href="{{ url_for('edit_plot', id=plot.id) }}" class="btn btn-primary btn-sm">Modifier</a>
+                    <a href="{{ url_for('delete_plot', id=plot.id) }}" class="btn btn-danger btn-sm" onclick="return confirm('Supprimer?')">Supprimer</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="alert alert-info">Aucune parcelle</div>
+    {% endif %}
+</div>
+{% endblock %}

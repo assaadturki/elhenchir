@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3">
+    <h1 class="h2">🌳 Gestion des Oliviers</h1>
+    <div class="btn-toolbar">
+        <a href="{{ url_for('create_olivier') }}" class="btn btn-success">
+            <i class="fas fa-plus"></i> Ajouter un olivier
+        </a>
+        <a href="{{ url_for('stock_huile') }}" class="btn btn-info ms-2">
+            <i class="fas fa-oil-can"></i> Stock huile
+        </a>
+        <a href="{{ url_for('dashboard_oliveraie') }}" class="btn btn-primary ms-2">
+            <i class="fas fa-chart-line"></i> Dashboard
+        </a>
+    </div>
+</div>
+
+<table class="table table-striped">
+    <thead class="table-success">
+        <tr><th>N°</th><th>Variété</th><th>Parcelle</th><th>Âge</th><th>État</th><th>Actions</th></tr>
+    </thead>
+    <tbody>
+        {% for olivier in oliviers %}
+        <tr>
+            <td>{{ olivier.numero_arbre or olivier.id }}</td>
+            <td>{{ olivier.variete or '-' }}</td>
+            <td>{{ olivier.parcelle.nom if olivier.parcelle else '-' }}</td>
+            <td>{{ olivier.age or '-' }} ans</td>
+            <td><span class="badge bg-success">{{ olivier.etat_sante or 'Bon' }}</span></td>
+            <td>
+                <a href="{{ url_for('olivier_detail', id=olivier.id) }}" class="btn btn-sm btn-info">Voir</a>
+                <a href="{{ url_for('edit_olivier', id=olivier.id) }}" class="btn btn-sm btn-primary">Modifier</a>
+                <a href="{{ url_for('add_production_olive', olivier_id=olivier.id) }}" class="btn btn-sm btn-warning">Production</a>
+             </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3">
+    <h1 class="h2">📊 Dashboard Oliveraie</h1>
+    <div class="btn-toolbar">
+        <a href="{{ url_for('oliviers') }}" class="btn btn-primary">
+            <i class="fas fa-tree"></i> Gérer les oliviers
+        </a>
+        <a href="{{ url_for('stock_huile') }}" class="btn btn-success ms-2">
+            <i class="fas fa-oil-can"></i> Voir le stock
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4 mb-3">
+        <div class="card text-white bg-primary">
+            <div class="card-body">
+                <h5 class="card-title">🌳 Total oliviers</h5>
+                <h2 class="mb-0">{{ total_oliviers }}</h2>
+                <small>arbres plantés</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <h5 class="card-title">✅ Oliviers actifs</h5>
+                <h2 class="mb-0">{{ total_actifs }}</h2>
+                <small>en bonne santé</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card text-white bg-warning">
+            <div class="card-body">
+                <h5 class="card-title">🛢️ Production totale</h5>
+                <h2 class="mb-0">{{ "%.0f"|format(production_totale) }} L</h2>
+                <small>d'huile d'olive</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <i class="fas fa-chart-bar"></i> Production par variété
+            </div>
+            <div class="card-body">
+                <canvas id="productionChart" height="100"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const ctx = document.getElementById('productionChart').getContext('2d');
+    const varietes = {{ production_par_variete|map(attribute=0)|list|tojson }};
+    const quantites = {{ production_par_variete|map(attribute=1)|list|tojson }};
+    
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: varietes,
+            datasets: [{
+                label: 'Production d\'huile (Litres)',
+                data: quantites,
+                backgroundColor: '#28a745',
+                borderColor: '#1e7e34',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Litres'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Variété'
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

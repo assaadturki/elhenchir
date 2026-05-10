@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Enregistrer Recolte - {{ crop.nom_culture }}</h2>
+<div class="row"><div class="col-md-6">
+    <form method="POST">
+        <div class="mb-3"><label>Date recolte</label><input type="date" name="date_recolte" class="form-control" value="{{ now.strftime('%Y-%m-%d') }}" required></div>
+        <div class="mb-3"><label>Quantite recoltee</label><input type="number" step="0.01" name="quantite_recoltee" class="form-control" required></div>
+        <div class="mb-3"><label>Unite</label><select name="unite" class="form-control"><option value="kg">kg</option><option value="tonnes">tonnes</option></select></div>
+        <div class="mb-3"><label>Qualite</label><select name="qualite" class="form-control">{% for q in qualites %}<option value="{{ q }}">{{ q }}</option>{% endfor %}</select></div>
+        <div class="mb-3"><label>Pertes (%)</label><input type="number" step="0.1" name="pertes" class="form-control" value="0"></div>
+        <button type="submit" class="btn btn-warning">Enregistrer</button>
+        <a href="{{ url_for('crops') }}" class="btn btn-secondary">Annuler</a>
+    </form>
+</div></div>
+{% endblock %}
