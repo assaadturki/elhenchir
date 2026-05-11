@@ -1,0 +1,75 @@
+<!-- ===== templates/materiel/create.html ===== -->
+{% extends "base.html" %}
+{% block title %}Ajouter Matériel{% endblock %}
+{% block content %}
+<div class="container py-4" style="max-width:700px">
+  <div class="d-flex align-items-center mb-4">
+    <a href="{{ url_for('materiel') }}" class="btn btn-outline-secondary btn-sm me-3"><i class="fas fa-arrow-left"></i></a>
+    <h2 class="mb-0"><i class="fas fa-plus text-success me-2"></i>Ajouter matériel</h2>
+  </div>
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      <form method="POST">
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">Nom <span class="text-danger">*</span></label>
+            <input type="text" name="nom" class="form-control" required placeholder="Ex: Tracteur principal">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">Type</label>
+            <select name="type_materiel" class="form-select">
+              <option value="">-- Choisir --</option>
+              {% for t in types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">Marque</label>
+            <input type="text" name="marque" class="form-control" placeholder="Ex: John Deere">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">Modèle</label>
+            <input type="text" name="modele" class="form-control">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">Numéro de série</label>
+            <input type="text" name="numero_serie" class="form-control">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">Année d'achat</label>
+            <input type="number" name="annee_achat" class="form-control" min="1990" max="{{ now.year }}" placeholder="{{ now.year }}">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">Prix d'achat (TND)</label>
+            <input type="number" name="prix_achat" class="form-control" step="0.001" min="0">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">État</label>
+            <select name="etat" class="form-select">
+              {% for val, label in etats %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">Parcelle assignée</label>
+            <select name="parcelle_id" class="form-select">
+              <option value="">-- Aucune --</option>
+              {% for p in plots %}<option value="{{ p.id }}">{{ p.nom }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">Localisation</label>
+            <input type="text" name="localisation" class="form-control" placeholder="Hangar, Parcelle B...">
+          </div>
+          <div class="col-12 mb-4">
+            <label class="form-label fw-bold">Notes</label>
+            <textarea name="notes" class="form-control" rows="2"></textarea>
+          </div>
+        </div>
+        <div class="d-grid gap-2">
+          <button type="submit" class="btn btn-success"><i class="fas fa-save me-1"></i>Enregistrer</button>
+          <a href="{{ url_for('materiel') }}" class="btn btn-outline-secondary">Annuler</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

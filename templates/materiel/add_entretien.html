@@ -1,0 +1,55 @@
+<!-- ===== templates/materiel/add_entretien.html ===== -->
+{% extends "base.html" %}
+{% block title %}Entretien — {{ mat.nom }}{% endblock %}
+{% block content %}
+<div class="container py-4" style="max-width:600px">
+  <div class="d-flex align-items-center mb-4">
+    <a href="{{ url_for('materiel_detail', id=mat.id) }}" class="btn btn-outline-secondary btn-sm me-3"><i class="fas fa-arrow-left"></i></a>
+    <h2 class="mb-0"><i class="fas fa-wrench text-success me-2"></i>Entretien — {{ mat.nom }}</h2>
+  </div>
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      <form method="POST">
+        <div class="mb-3">
+          <label class="form-label fw-bold">Type d'entretien <span class="text-danger">*</span></label>
+          <select name="type_entretien" class="form-select" required>
+            {% for t in types_entretien %}<option>{{ t }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">Date entretien <span class="text-danger">*</span></label>
+            <input type="date" name="date_entretien" class="form-control" required value="{{ now.strftime('%Y-%m-%d') }}">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">Prochain entretien</label>
+            <input type="date" name="date_prochain" class="form-control">
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-bold">Description</label>
+          <textarea name="description" class="form-control" rows="2"></textarea>
+        </div>
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">Technicien</label>
+            <input type="text" name="technicien" class="form-control">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">Coût (TND)</label>
+            <input type="number" name="cout_tnd" class="form-control" step="0.001" min="0" placeholder="0.000">
+          </div>
+        </div>
+        <div class="mb-4">
+          <label class="form-label fw-bold">Pièces changées</label>
+          <input type="text" name="pieces_changees" class="form-control" placeholder="Filtre huile, courroie...">
+        </div>
+        <div class="d-grid gap-2">
+          <button type="submit" class="btn btn-success"><i class="fas fa-save me-1"></i>Enregistrer</button>
+          <a href="{{ url_for('materiel_detail', id=mat.id) }}" class="btn btn-outline-secondary">Annuler</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

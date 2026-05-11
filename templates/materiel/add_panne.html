@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Panne — {{ mat.nom }}{% endblock %}
+{% block content %}
+<div class="container py-4" style="max-width:600px">
+  <div class="d-flex align-items-center mb-4">
+    <a href="{{ url_for('materiel_detail', id=mat.id) }}" class="btn btn-outline-secondary btn-sm me-3"><i class="fas fa-arrow-left"></i></a>
+    <h2 class="mb-0"><i class="fas fa-exclamation-triangle text-danger me-2"></i>Panne — {{ mat.nom }}</h2>
+  </div>
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      <form method="POST">
+        <div class="mb-3">
+          <label class="form-label fw-bold">Description de la panne <span class="text-danger">*</span></label>
+          <textarea name="description" class="form-control" rows="3" required placeholder="Décrire la panne..."></textarea>
+        </div>
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">Date panne <span class="text-danger">*</span></label>
+            <input type="date" name="date_panne" class="form-control" required value="{{ now.strftime('%Y-%m-%d') }}">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">Date réparation</label>
+            <input type="date" name="date_reparation" class="form-control">
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-bold">Cause probable</label>
+          <input type="text" name="cause" class="form-control" placeholder="Usure, accident, manque entretien...">
+        </div>
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">Technicien</label>
+            <input type="text" name="technicien" class="form-control">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label fw-bold">Coût réparation (TND)</label>
+            <input type="number" name="cout_reparation" class="form-control" step="0.001" min="0" placeholder="0.000">
+          </div>
+        </div>
+        <div class="mb-4">
+          <label class="form-label fw-bold">Statut</label>
+          <select name="statut" class="form-select">
+            <option value="en_cours">En cours de réparation</option>
+            <option value="repare">Réparé</option>
+            <option value="irrecuperable">Irrécupérable</option>
+          </select>
+        </div>
+        <div class="d-grid gap-2">
+          <button type="submit" class="btn btn-danger"><i class="fas fa-save me-1"></i>Enregistrer</button>
+          <a href="{{ url_for('materiel_detail', id=mat.id) }}" class="btn btn-outline-secondary">Annuler</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

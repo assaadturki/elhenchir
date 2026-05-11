@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Matériel Agricole{% endblock %}
+{% block content %}
+<div class="container-fluid py-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="mb-0"><i class="fas fa-tractor text-success me-2"></i>Matériel Agricole</h2>
+      <small class="text-muted">{{ materiels|length }} engin(s) enregistré(s)</small>
+    </div>
+    {% if current_user.role in ['admin','manager'] %}
+    <a href="{{ url_for('create_materiel') }}" class="btn btn-success">
+      <i class="fas fa-plus me-1"></i> Ajouter matériel
+    </a>
+    {% endif %}
+  </div>
+
+  <!-- Alertes entretiens proches -->
+  {% if entretiens_proches %}
+  <div class="alert alert-warning d-flex align-items-center mb-4">
+    <i class="fas fa-exclamation-triangle me-2"></i>
+    <div>
+      <strong>{{ entretiens_proches|length }} entretien(s) à prévoir dans les 30 jours :</strong>
+      {% for e in entretiens_proches %}
+        <span class="badge bg-warning text-dark ms-1">{{ e.materiel.nom }} — {{ e.type_entretien }} ({{ e.date_prochain.strftime('%d/%m/%Y') }})</span>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Stats -->
+  <div class="row mb-4">
+    {% set etats = {'bon': ('success','Bon état'), 'moyen': ('warning','Moyen'), 'mauvais': ('danger','Mauvais'), 'hors_service': ('secondary','Hors service')} %}
+    {% for etat, (color, label) in etats.items() %}
+    <div class="col-6 col-md-3 mb-2">
+      <div class="card border-0 shadow-sm text-center py-3">
+        <h4 class="text-{{ color }} mb-0">{{ materiels|selectattr('etat','eq',etat)|list|length }}</h4>
+        <small class="text-muted">{{ label }}</small>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Liste matériels -->
+  <div class="row">
+    {% for mat in materiels %}
+    <div class="col-md-6 col-lg-4 mb-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start mb-2">
+            <h5 class="mb-0">
+              <i class="fas fa-{{ 'tractor' if mat.type_materiel in ['Tracteur','Moissonneuse'] else 'tools' }} me-2 text-success"></i>
+              {{ mat.nom }}
+            </h5>
+            {% set etat_colors = {'bon':'success','moyen':'warning','mauvais':'danger','hors_service':'secondary'} %}
+            <span class="badge bg-{{ etat_colors.get(mat.etat,'secondary') }}">
+              {{ mat.etat|replace('_',' ')|title }}
+            </span>
+          </div>
+          <p class="text-muted small mb-1"><strong>Type :</strong> {{ mat.type_materiel or '—' }}</p>
+          <p class="text-muted small mb-1"><strong>Marque :</strong> {{ mat.marque or '—' }} {{ mat.modele or '' }}</p>
+          <p class="text-muted small mb-1"><strong>N° Série :</strong> {{ mat.numero_serie or '—' }}</p>
+          <p class="text-muted small mb-2"><strong>Parcelle :</strong> {{ mat.parcelle.nom if mat.parcelle else '—' }}</p>
+          <div class="d-flex justify-content-between align-items-center mt-3">
+            <small class="text-muted">{{ mat.entretiens|length }} entretien(s) · {{ mat.pannes|length }} panne(s)</small>
+            <a href="{{ url_for('materiel_detail', id=mat.id) }}" class="btn btn-sm btn-outline-success">
+              <i class="fas fa-eye me-1"></i>Détail
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="col-12 text-center py-5 text-muted">
+      <i class="fas fa-tractor fa-3x mb-3 d-block"></i>
+      Aucun matériel enregistré.
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

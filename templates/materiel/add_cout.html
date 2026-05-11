@@ -1,1 +1,38 @@
-
+{% extends "base.html" %}
+{% block title %}Ajouter coût — {{ mat.nom }}{% endblock %}
+{% block content %}
+<div class="container py-4" style="max-width:500px">
+  <div class="d-flex align-items-center mb-4">
+    <a href="{{ url_for('materiel_detail', id=mat.id) }}" class="btn btn-outline-secondary btn-sm me-3"><i class="fas fa-arrow-left"></i></a>
+    <h2 class="mb-0"><i class="fas fa-coins text-warning me-2"></i>Coût — {{ mat.nom }}</h2>
+  </div>
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      <form method="POST">
+        <div class="mb-3">
+          <label class="form-label fw-bold">Type de coût <span class="text-danger">*</span></label>
+          <select name="type_cout" class="form-select" required>
+            {% for val, label in types_cout %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-bold">Montant (TND) <span class="text-danger">*</span></label>
+          <input type="number" name="montant_tnd" class="form-control" step="0.001" min="0" required placeholder="0.000">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-bold">Date <span class="text-danger">*</span></label>
+          <input type="date" name="date_cout" class="form-control" required value="{{ now.strftime('%Y-%m-%d') }}">
+        </div>
+        <div class="mb-4">
+          <label class="form-label fw-bold">Description</label>
+          <input type="text" name="description" class="form-control" placeholder="Ex: 50L gasoil, Filtre à huile...">
+        </div>
+        <div class="d-grid gap-2">
+          <button type="submit" class="btn btn-warning"><i class="fas fa-save me-1"></i>Enregistrer</button>
+          <a href="{{ url_for('materiel_detail', id=mat.id) }}" class="btn btn-outline-secondary">Annuler</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

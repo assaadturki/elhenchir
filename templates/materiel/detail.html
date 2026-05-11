@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block title %}{{ mat.nom }}{% endblock %}
+{% block content %}
+<div class="container-fluid py-4">
+
+  <!-- Header -->
+  <div class="d-flex align-items-center mb-4">
+    <a href="{{ url_for('materiel') }}" class="btn btn-outline-secondary btn-sm me-3">
+      <i class="fas fa-arrow-left"></i>
+    </a>
+    <div class="flex-grow-1">
+      <h2 class="mb-0">{{ mat.nom }}</h2>
+      <small class="text-muted">{{ mat.type_materiel }} · {{ mat.marque or '' }} {{ mat.modele or '' }}</small>
+    </div>
+    {% set etat_colors = {'bon':'success','moyen':'warning','mauvais':'danger','hors_service':'secondary'} %}
+    <span class="badge bg-{{ etat_colors.get(mat.etat,'secondary') }} fs-6 me-2">
+      {{ mat.etat|replace('_',' ')|title }}
+    </span>
+    {% if current_user.role in ['admin','manager'] %}
+    <a href="{{ url_for('edit_materiel', id=mat.id) }}" class="btn btn-outline-primary btn-sm">
+      <i class="fas fa-edit"></i>
+    </a>
+    {% endif %}
+  </div>
+
+  <div class="row mb-4">
+    <!-- Fiche technique -->
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-white fw-bold"><i class="fas fa-info-circle me-2 text-success"></i>Fiche technique</div>
+        <div class="card-body">
+          <table class="table table-sm table-borderless mb-0">
+            <tr><td class="text-muted">N° Série</td><td>{{ mat.numero_serie or '—' }}</td></tr>
+            <tr><td class="text-muted">Année achat</td><td>{{ mat.annee_achat or '—' }}</td></tr>
+            <tr><td class="text-muted">Prix achat</td><td>{{ '%.3f TND'|format(mat.prix_achat|float) if mat.prix_achat else '—' }}</td></tr>
+            <tr><td class="text-muted">Parcelle</td><td>{{ mat.parcelle.nom if mat.parcelle else '—' }}</td></tr>
+            <tr><td class="text-muted">Localisation</td><td>{{ mat.localisation or '—' }}</td></tr>
+            <tr><td class="text-muted">Coût total</td><td><strong class="text-danger">{{ '%.3f TND'|format(total_couts) }}</strong></td></tr>
+          </table>
+          {% if mat.notes %}
+          <hr><p class="small text-muted mb-0">{{ mat.notes }}</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Actions rapides -->
+    <div class="col-md-8">
+      <div class="row">
+        <div class="col-4">
+          <div class="card border-0 shadow-sm text-center py-3">
+            <h3 class="text-success mb-0">{{ entretiens|length }}</h3>
+            <small>Entretiens</small>
+          </div>
+        </div>
+        <div class="col-4">
+          <div class="card border-0 shadow-sm text-center py-3">
+            <h3 class="text-danger mb-0">{{ pannes|length }}</h3>
+            <small>Pannes</small>
+          </div>
+        </div>
+        <div class="col-4">
+          <div class="card border-0 shadow-sm text-center py-3">
+            <h3 class="text-warning mb-0">{{ couts|length }}</h3>
+            <small>Coûts</small>
+          </div>
+        </div>
+      </div>
+      {% if current_user.role in ['admin','manager'] %}
+      <div class="row mt-3">
+        <div class="col-4">
+          <a href="{{ url_for('add_entretien', materiel_id=mat.id) }}" class="btn btn-success w-100">
+            <i class="fas fa-wrench d-block mb-1"></i><small>Entretien</small>
+          </a>
+        </div>
+        <div class="col-4">
+          <a href="{{ url_for('add_panne', materiel_id=mat.id) }}" class="btn btn-danger w-100">
+            <i class="fas fa-exclamation-triangle d-block mb-1"></i><small>Panne</small>
+          </a>
+        </div>
+        <div class="col-4">
+          <a href="{{ url_for('add_cout_materiel', materiel_id=mat.id) }}" class="btn btn-warning w-100">
+            <i class="fas fa-gas-pump d-block mb-1"></i><small>Coût</small>
+          </a>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Entretiens -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white fw-bold"><i class="fas fa-wrench me-2 text-success"></i>Entretiens</div>
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0">
+        <thead class="table-light"><tr><th>Date</th><th>Type</th><th>Technicien</th><th>Prochain</th><th>Coût</th><th>Pièces changées</th></tr></thead>
+        <tbody>
+          {% for e in entretiens %}
+          <tr>
+            <td>{{ e.date_entretien.strftime('%d/%m/%Y') }}</td>
+            <td><span class="badge bg-success">{{ e.type_entretien }}</span></td>
+            <td>{{ e.technicien or '—' }}</td>
+            <td>
+              {% if e.date_prochain %}
+                {% if e.date_prochain <= now.date() %}
+                  <span class="text-danger fw-bold">{{ e.date_prochain.strftime('%d/%m/%Y') }} ⚠️</span>
+                {% else %}
+                  {{ e.date_prochain.strftime('%d/%m/%Y') }}
+                {% endif %}
+              {% else %}—{% endif %}
+            </td>
+            <td>{{ '%.3f TND'|format(e.cout_tnd|float) if e.cout_tnd else '—' }}</td>
+            <td><small>{{ e.pieces_changees or '—' }}</small></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="text-center text-muted py-3">Aucun entretien enregistré</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Pannes -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white fw-bold"><i class="fas fa-exclamation-triangle me-2 text-danger"></i>Pannes</div>
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0">
+        <thead class="table-light"><tr><th>Date panne</th><th>Description</th><th>Cause</th><th>Statut</th><th>Date réparation</th><th>Coût</th></tr></thead>
+        <tbody>
+          {% for p in pannes %}
+          {% set s_colors = {'en_cours':'danger','repare':'success','irrecuperable':'dark'} %}
+          <tr>
+            <td>{{ p.date_panne.strftime('%d/%m/%Y') }}</td>
+            <td>{{ p.description[:60] }}{% if p.description|length > 60 %}...{% endif %}</td>
+            <td>{{ p.cause or '—' }}</td>
+            <td><span class="badge bg-{{ s_colors.get(p.statut,'secondary') }}">{{ p.statut|replace('_',' ')|title }}</span></td>
+            <td>{{ p.date_reparation.strftime('%d/%m/%Y') if p.date_reparation else '—' }}</td>
+            <td>{{ '%.3f TND'|format(p.cout_reparation|float) if p.cout_reparation else '—' }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="text-center text-muted py-3">Aucune panne enregistrée</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Coûts -->
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-white fw-bold d-flex justify-content-between">
+      <span><i class="fas fa-coins me-2 text-warning"></i>Historique des coûts</span>
+      <strong class="text-danger">Total : {{ '%.3f TND'|format(total_couts) }}</strong>
+    </div>
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0">
+        <thead class="table-light"><tr><th>Date</th><th>Type</th><th>Description</th><th>Montant</th></tr></thead>
+        <tbody>
+          {% for c in couts %}
+          {% set c_colors = {'carburant':'warning','reparation':'danger','piece':'info','assurance':'primary','autre':'secondary','achat':'dark'} %}
+          <tr>
+            <td>{{ c.date_cout.strftime('%d/%m/%Y') }}</td>
+            <td><span class="badge bg-{{ c_colors.get(c.type_cout,'secondary') }}">{{ c.type_cout|title }}</span></td>
+            <td>{{ c.description or '—' }}</td>
+            <td><strong>{{ '%.3f'|format(c.montant_tnd|float) }} TND</strong></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="text-center text-muted py-3">Aucun coût enregistré</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
