@@ -16,12 +16,13 @@ class User(UserMixin, db.Model):
     is_active = db.Column(db.Boolean, default=True)
     telephone = db.Column(db.String(20))
     adresse = db.Column(db.Text)
-    
+
     def set_password(self, password):
         self.mot_de_passe = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-    
+
     def check_password(self, password):
         return bcrypt.checkpw(password.encode('utf-8'), self.mot_de_passe.encode('utf-8'))
+
 
 class Plot(db.Model):
     __tablename__ = 'plots'
@@ -33,9 +34,10 @@ class Plot(db.Model):
     irrigation = db.Column(db.String(100))
     statut = db.Column(db.String(50), default='active')
     date_creation = db.Column(db.DateTime, default=datetime.utcnow)
-    
+
     crops = db.relationship('Crop', backref='plot', lazy=True, cascade='all, delete-orphan')
     expenses = db.relationship('Expense', backref='plot', lazy=True, cascade='all, delete-orphan')
+
 
 class Crop(db.Model):
     __tablename__ = 'crops'
@@ -52,9 +54,10 @@ class Crop(db.Model):
     statut = db.Column(db.String(50), default='planifie')
     notes = db.Column(db.Text)
     date_creation = db.Column(db.DateTime, default=datetime.utcnow)
-    
+
     revenues = db.relationship('Revenue', backref='crop', lazy=True, cascade='all, delete-orphan')
     harvests = db.relationship('Harvest', backref='crop', lazy=True, cascade='all, delete-orphan')
+
 
 class Expense(db.Model):
     __tablename__ = 'expenses'
@@ -66,12 +69,14 @@ class Expense(db.Model):
     parcelle_id = db.Column(db.Integer, db.ForeignKey('plots.id'))
     reference = db.Column(db.String(100))
     fournisseur = db.Column(db.String(200))
+    facture_fichier = db.Column(db.String(255))  # upload facture PDF/image
     date_creation = db.Column(db.DateTime, default=datetime.utcnow)
+
 
 class Revenue(db.Model):
     __tablename__ = 'revenues'
     id = db.Column(db.Integer, primary_key=True)
-    culture_id = db.Column(db.Integer, db.ForeignKey('crops.id'), nullable=False)
+    culture_id = db.Column(db.Integer, db.ForeignKey('crops.id'), nullable=True)  # nullable pour elevage/oliviers
     quantite_vendue = db.Column(db.Float, nullable=False)
     prix_unitaire_tnd = db.Column(db.Numeric(10, 3), nullable=False)
     revenu_total_tnd = db.Column(db.Numeric(10, 2), nullable=False)
@@ -79,7 +84,9 @@ class Revenue(db.Model):
     client = db.Column(db.String(200))
     facture_numero = db.Column(db.String(100))
     notes = db.Column(db.Text)
+    source = db.Column(db.String(50), default='culture')
     date_creation = db.Column(db.DateTime, default=datetime.utcnow)
+
 
 class Inventory(db.Model):
     __tablename__ = 'inventory'
@@ -93,8 +100,9 @@ class Inventory(db.Model):
     emplacement = db.Column(db.String(200))
     date_maj = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     fournisseur = db.Column(db.String(200))
-    
+
     movements = db.relationship('InventoryMovement', backref='produit', lazy=True, cascade='all, delete-orphan')
+
 
 class InventoryMovement(db.Model):
     __tablename__ = 'inventory_movements'
@@ -105,6 +113,7 @@ class InventoryMovement(db.Model):
     date_mouvement = db.Column(db.DateTime, default=datetime.utcnow)
     raison = db.Column(db.String(200))
     utilisateur_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+
 
 class Employee(db.Model):
     __tablename__ = 'employees'
@@ -121,8 +130,9 @@ class Employee(db.Model):
     cin = db.Column(db.String(20))
     statut = db.Column(db.String(50), default='actif')
     notes = db.Column(db.Text)
-    
+
     attendances = db.relationship('Attendance', backref='employe', lazy=True, cascade='all, delete-orphan')
+
 
 class Attendance(db.Model):
     __tablename__ = 'attendances'
@@ -134,6 +144,7 @@ class Attendance(db.Model):
     heures_travaillees = db.Column(db.Float)
     statut = db.Column(db.String(50), default='present')
     notes = db.Column(db.Text)
+
 
 class Harvest(db.Model):
     __tablename__ = 'harvests'
@@ -147,6 +158,7 @@ class Harvest(db.Model):
     main_doeuvre = db.Column(db.Integer)
     notes = db.Column(db.Text)
 
+
 class Notification(db.Model):
     __tablename__ = 'notifications'
     id = db.Column(db.Integer, primary_key=True)
@@ -158,6 +170,7 @@ class Notification(db.Model):
     date_creation = db.Column(db.DateTime, default=datetime.utcnow)
     lien = db.Column(db.String(500))
 
+
 class AnimalType(db.Model):
     __tablename__ = 'animal_types'
     id = db.Column(db.Integer, primary_key=True)
@@ -166,6 +179,7 @@ class AnimalType(db.Model):
     description = db.Column(db.Text)
     date_creation = db.Column(db.DateTime, default=datetime.utcnow)
     animals = db.relationship('Animal', backref='type_animal', lazy=True)
+
 
 class Animal(db.Model):
     __tablename__ = 'animals'
@@ -190,6 +204,7 @@ class Animal(db.Model):
     productions = db.relationship('AnimalProduction', backref='animal', lazy=True, cascade='all, delete-orphan')
     alimentations = db.relationship('Alimentation', backref='animal', lazy=True, cascade='all, delete-orphan')
 
+
 class AnimalSoin(db.Model):
     __tablename__ = 'animal_soins'
     id = db.Column(db.Integer, primary_key=True)
@@ -204,6 +219,7 @@ class AnimalSoin(db.Model):
     notes = db.Column(db.Text)
     date_creation = db.Column(db.DateTime, default=datetime.utcnow)
 
+
 class AnimalProduction(db.Model):
     __tablename__ = 'animal_productions'
     id = db.Column(db.Integer, primary_key=True)
@@ -215,6 +231,7 @@ class AnimalProduction(db.Model):
     prix_vente_unitaire = db.Column(db.Numeric(10, 3))
     revenu_total = db.Column(db.Numeric(10, 2))
     notes = db.Column(db.Text)
+
 
 class Alimentation(db.Model):
     __tablename__ = 'alimentations'
