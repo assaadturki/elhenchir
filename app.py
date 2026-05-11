@@ -187,6 +187,140 @@ def dashboard():
                            low_stock=low_stock)
 
 
+
+# ========== GESTION UTILISATEURS ==========
+@app.route('/admin/users')
+@login_required
+@admin_required
+def admin_users():
+    users = User.query.order_by(User.date_creation.desc()).all()
+    return render_template('admin/users.html', users=users)
+
+@app.route('/admin/users/create', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def admin_create_user():
+    if request.method == 'POST':
+        try:
+            email = request.form.get('email', '').strip()
+            if User.query.filter_by(email=email).first():
+                flash('Cet email est deja utilise.', 'danger')
+                return render_template('admin/create_user.html')
+            user = User(
+                nom=request.form.get('nom'), email=email,
+                role=request.form.get('role', 'employee'),
+                telephone=request.form.get('telephone'),
+                adresse=request.form.get('adresse'), is_active=True
+            )
+            user.set_password(request.form.get('password'))
+            db.session.add(user)
+            db.session.commit()
+            flash(f'Utilisateur {user.nom} cree!', 'success')
+            return redirect(url_for('admin_users'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erreur: {str(e)}', 'danger')
+    return render_template('admin/create_user.html')
+
+@app.route('/admin/users/edit/<int:id>', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def admin_edit_user(id):
+    user = db.get_or_404(User, id)
+    if request.method == 'POST':
+        try:
+            email = request.form.get('email', '').strip()
+            existing = User.query.filter_by(email=email).first()
+            if existing and existing.id != user.id:
+                flash('Cet email est deja utilise.', 'danger')
+                return render_template('admin/edit_user.html', user=user)
+            user.nom = request.form.get('nom')
+            user.email = email
+            user.role = request.form.get('role')
+            user.telephone = request.form.get('telephone')
+            user.adresse = request.form.get('adresse')
+            user.is_active = request.form.get('is_active') == 'on'
+            new_password = request.form.get('password', '').strip()
+            if new_password:
+                user.set_password(new_password)
+            db.session.commit()
+            flash(f'Utilisateur {user.nom} modifie!', 'success')
+            return redirect(url_for('admin_users'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erreur: {str(e)}', 'danger')
+    return render_template('admin/edit_user.html', user=user)
+
+@app.route('/admin/users/toggle/<int:id>', methods=['POST'])
+@login_required
+@admin_required
+def admin_toggle_user(id):
+    user = db.get_or_404(User, id)
+    if user.id == current_user.id:
+        return jsonify({'success': False, 'error': 'Impossible de vous desactiver.'}), 400
+    try:
+        user.is_active = not user.is_active
+        db.session.commit()
+        return jsonify({'success': True, 'is_active': user.is_active})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/admin/users/delete/<int:id>', methods=['POST'])
+@login_required
+@admin_required
+def admin_delete_user(id):
+    user = db.get_or_404(User, id)
+    if user.id == current_user.id:
+        return jsonify({'success': False, 'error': 'Impossible de supprimer votre compte.'}), 400
+    try:
+        db.session.delete(user)
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/admin/users/reset-password/<int:id>', methods=['POST'])
+@login_required
+@admin_required
+def admin_reset_password(id):
+    user = db.get_or_404(User, id)
+    try:
+        new_password = request.form.get('new_password', '').strip()
+        if len(new_password) < 6:
+            return jsonify({'success': False, 'error': 'Min 6 caracteres.'}), 400
+        user.set_password(new_password)
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/profile', methods=['GET', 'POST'])
+@login_required
+def profile():
+    if request.method == 'POST':
+        try:
+            current_user.nom = request.form.get('nom')
+            current_user.telephone = request.form.get('telephone')
+            current_user.adresse = request.form.get('adresse')
+            old_pwd = request.form.get('old_password', '').strip()
+            new_pwd = request.form.get('new_password', '').strip()
+            if old_pwd and new_pwd:
+                if not current_user.check_password(old_pwd):
+                    flash('Ancien mot de passe incorrect.', 'danger')
+                    return render_template('admin/profile.html')
+                current_user.set_password(new_pwd)
+                flash('Mot de passe modifie!', 'success')
+            db.session.commit()
+            flash('Profil mis a jour!', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erreur: {str(e)}', 'danger')
+    return render_template('admin/profile.html')
+
+
 # ========== PARCELLES ==========
 @app.route('/plots')
 @login_required
