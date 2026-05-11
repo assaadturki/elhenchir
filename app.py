@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-from flask import Flask, render_template, redirect, url_for, flash, request, jsonify, send_from_directory
+from functools import wraps
+from flask import Flask, render_template, redirect, url_for, flash, request, jsonify, abort, send_from_directory
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_migrate import Migrate
 from datetime import datetime, timedelta
@@ -29,6 +30,30 @@ login_manager.init_app(app)
 login_manager.login_view = 'login'
 login_manager.login_message = 'Veuillez vous connecter pour acceder a cette page.'
 login_manager.login_message_category = 'warning'
+
+
+# ========== DECORATEURS DE ROLES ==========
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or current_user.role != 'admin':
+            abort(403)
+        return f(*args, **kwargs)
+    return decorated_function
+
+def manager_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or current_user.role not in ['admin', 'manager']:
+            abort(403)
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+# ========== GESTIONNAIRES D'ERREUR ==========
+@app.errorhandler(403)
+def forbidden(e):
+    return render_template('errors/403.html'), 403
 
 
 # ========== LOAD USER ==========
@@ -1475,4 +1500,3 @@ class CoutMateriel(db.Model):
     description = db.Column(db.String(200))
     notes = db.Column(db.Text)
     date_creation = db.Column(db.DateTime, default=datetime.utcnow)
-
