@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-from flask import Flask, render_template, redirect, url_for, flash, request, jsonify
+from functools import wraps
+from flask import Flask, render_template, redirect, url_for, flash, request, jsonify, abort, send_from_directory
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -38,7 +39,6 @@ class Olivier(db.Model):
     etat_sante = db.Column(db.String(50))
     notes = db.Column(db.Text)
     date_creation = db.Column(db.DateTime, default=datetime.utcnow)
-    
     productions = db.relationship('ProductionOlive', backref='olivier', lazy=True, cascade='all, delete-orphan')
     traitements = db.relationship('TraitementOlivier', backref='olivier', lazy=True, cascade='all, delete-orphan')
 
@@ -94,6 +94,37 @@ with app.app_context():
         db.session.commit()
         print("Admin cree: admin@farm.com / admin123")
 
+# ========== DECORATEURS DE ROLES ==========
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or current_user.role != 'admin':
+            abort(403)
+        return f(*args, **kwargs)
+    return decorated_function
+
+def manager_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or current_user.role not in ['admin', 'manager']:
+            abort(403)
+        return f(*args, **kwargs)
+    return decorated_function
+
+# ========== GESTIONNAIRES D'ERREUR ==========
+@app.errorhandler(403)
+def forbidden(e):
+    return render_template('errors/403.html'), 403
+
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('errors/404.html'), 404
+
+@app.errorhandler(500)
+def internal_error(e):
+    db.session.rollback()
+    return render_template('errors/500.html'), 500
+
 # ========== ROUTES PRINCIPALES ==========
 @app.route('/')
 def index():
@@ -105,19 +136,16 @@ def index():
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('dashboard'))
-    
     if request.method == 'POST':
         email = request.form.get('email')
         password = request.form.get('password')
         user = User.query.filter_by(email=email).first()
-        
-        if user and user.check_password(password):
+        if user and user.check_password(password) and user.is_active:
             login_user(user)
             flash('Connexion reussie!', 'success')
             return redirect(url_for('dashboard'))
         else:
             flash('Email ou mot de passe incorrect', 'danger')
-    
     return render_template('login.html')
 
 @app.route('/logout')
@@ -132,25 +160,159 @@ def logout():
 def dashboard():
     today = datetime.now().date()
     first_day = today.replace(day=1)
-    
     monthly_expenses = db.session.query(func.sum(Expense.montant_tnd)).filter(
         Expense.date_depense >= first_day
     ).scalar() or 0
-    
     monthly_revenues = db.session.query(func.sum(Revenue.revenu_total_tnd)).filter(
         Revenue.date_vente >= first_day
     ).scalar() or 0
-    
     monthly_profit = float(monthly_revenues) - float(monthly_expenses)
     active_crops = Crop.query.filter(Crop.statut.in_(['planifie', 'en_cours'])).count()
     low_stock = Inventory.query.filter(Inventory.quantite <= Inventory.seuil_alerte).all()
-    
     return render_template('dashboard.html',
                          monthly_expenses=float(monthly_expenses),
                          monthly_revenues=float(monthly_revenues),
                          monthly_profit=monthly_profit,
                          active_crops=active_crops,
                          low_stock=low_stock)
+
+# ========== GESTION UTILISATEURS (ADMIN) ==========
+@app.route('/admin/users')
+@login_required
+@admin_required
+def admin_users():
+    users = User.query.order_by(User.date_creation.desc()).all()
+    return render_template('admin/users.html', users=users)
+
+@app.route('/admin/users/create', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def admin_create_user():
+    if request.method == 'POST':
+        try:
+            email = request.form.get('email', '').strip()
+            if User.query.filter_by(email=email).first():
+                flash('Cet email est deja utilise.', 'danger')
+                return render_template('admin/create_user.html')
+            user = User(
+                nom=request.form.get('nom'),
+                email=email,
+                role=request.form.get('role', 'employee'),
+                telephone=request.form.get('telephone'),
+                adresse=request.form.get('adresse'),
+                is_active=True
+            )
+            user.set_password(request.form.get('password'))
+            db.session.add(user)
+            db.session.commit()
+            flash(f'Utilisateur {user.nom} cree avec succes!', 'success')
+            return redirect(url_for('admin_users'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erreur: {str(e)}', 'danger')
+    return render_template('admin/create_user.html')
+
+@app.route('/admin/users/edit/<int:id>', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def admin_edit_user(id):
+    user = db.get_or_404(User, id)
+    if request.method == 'POST':
+        try:
+            email = request.form.get('email', '').strip()
+            existing = User.query.filter_by(email=email).first()
+            if existing and existing.id != user.id:
+                flash('Cet email est deja utilise.', 'danger')
+                return render_template('admin/edit_user.html', user=user)
+            user.nom = request.form.get('nom')
+            user.email = email
+            user.role = request.form.get('role')
+            user.telephone = request.form.get('telephone')
+            user.adresse = request.form.get('adresse')
+            user.is_active = request.form.get('is_active') == 'on'
+            new_password = request.form.get('password', '').strip()
+            if new_password:
+                user.set_password(new_password)
+            db.session.commit()
+            flash(f'Utilisateur {user.nom} modifie avec succes!', 'success')
+            return redirect(url_for('admin_users'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erreur: {str(e)}', 'danger')
+    return render_template('admin/edit_user.html', user=user)
+
+@app.route('/admin/users/toggle/<int:id>', methods=['POST'])
+@login_required
+@admin_required
+def admin_toggle_user(id):
+    user = db.get_or_404(User, id)
+    if user.id == current_user.id:
+        return jsonify({'success': False, 'error': 'Vous ne pouvez pas vous desactiver vous-meme.'}), 400
+    try:
+        user.is_active = not user.is_active
+        db.session.commit()
+        status = 'active' if user.is_active else 'desactive'
+        return jsonify({'success': True, 'status': status, 'is_active': user.is_active})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/admin/users/delete/<int:id>', methods=['POST'])
+@login_required
+@admin_required
+def admin_delete_user(id):
+    user = db.get_or_404(User, id)
+    if user.id == current_user.id:
+        return jsonify({'success': False, 'error': 'Vous ne pouvez pas supprimer votre propre compte.'}), 400
+    try:
+        db.session.delete(user)
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/admin/users/reset-password/<int:id>', methods=['POST'])
+@login_required
+@admin_required
+def admin_reset_password(id):
+    user = db.get_or_404(User, id)
+    try:
+        new_password = request.form.get('new_password', '').strip()
+        if len(new_password) < 6:
+            return jsonify({'success': False, 'error': 'Mot de passe trop court (min 6 caracteres).'}), 400
+        user.set_password(new_password)
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/profile', methods=['GET', 'POST'])
+@login_required
+def profile():
+    if request.method == 'POST':
+        try:
+            current_user.nom = request.form.get('nom')
+            current_user.telephone = request.form.get('telephone')
+            current_user.adresse = request.form.get('adresse')
+            old_password = request.form.get('old_password', '').strip()
+            new_password = request.form.get('new_password', '').strip()
+            if old_password and new_password:
+                if not current_user.check_password(old_password):
+                    flash('Ancien mot de passe incorrect.', 'danger')
+                    return render_template('admin/profile.html')
+                if len(new_password) < 6:
+                    flash('Nouveau mot de passe trop court (min 6 caracteres).', 'danger')
+                    return render_template('admin/profile.html')
+                current_user.set_password(new_password)
+                flash('Mot de passe modifie avec succes!', 'success')
+            db.session.commit()
+            flash('Profil mis a jour!', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erreur: {str(e)}', 'danger')
+    return render_template('admin/profile.html')
 
 # ========== PARCELLES ==========
 @app.route('/plots')
@@ -161,45 +323,60 @@ def plots():
 
 @app.route('/plots/create', methods=['GET', 'POST'])
 @login_required
+@manager_required
 def create_plot():
     if request.method == 'POST':
-        plot = Plot(
-            nom=request.form.get('nom'),
-            superficie=float(request.form.get('superficie')),
-            localisation=request.form.get('localisation'),
-            type_sol=request.form.get('type_sol'),
-            irrigation=request.form.get('irrigation'),
-            statut=request.form.get('statut')
-        )
-        db.session.add(plot)
-        db.session.commit()
-        flash('Parcelle ajoutee avec succes!', 'success')
-        return redirect(url_for('plots'))
+        try:
+            plot = Plot(
+                nom=request.form.get('nom'),
+                superficie=float(request.form.get('superficie')),
+                localisation=request.form.get('localisation'),
+                type_sol=request.form.get('type_sol'),
+                irrigation=request.form.get('irrigation'),
+                statut=request.form.get('statut')
+            )
+            db.session.add(plot)
+            db.session.commit()
+            flash('Parcelle ajoutee avec succes!', 'success')
+            return redirect(url_for('plots'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erreur: {str(e)}', 'danger')
     return render_template('plots/create.html')
 
 @app.route('/plots/edit/<int:id>', methods=['GET', 'POST'])
 @login_required
+@manager_required
 def edit_plot(id):
-    plot = Plot.query.get_or_404(id)
+    plot = db.get_or_404(Plot, id)
     if request.method == 'POST':
-        plot.nom = request.form.get('nom')
-        plot.superficie = float(request.form.get('superficie'))
-        plot.localisation = request.form.get('localisation')
-        plot.type_sol = request.form.get('type_sol')
-        plot.irrigation = request.form.get('irrigation')
-        plot.statut = request.form.get('statut')
-        db.session.commit()
-        flash('Parcelle modifiee avec succes!', 'success')
-        return redirect(url_for('plots'))
+        try:
+            plot.nom = request.form.get('nom')
+            plot.superficie = float(request.form.get('superficie'))
+            plot.localisation = request.form.get('localisation')
+            plot.type_sol = request.form.get('type_sol')
+            plot.irrigation = request.form.get('irrigation')
+            plot.statut = request.form.get('statut')
+            db.session.commit()
+            flash('Parcelle modifiee avec succes!', 'success')
+            return redirect(url_for('plots'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erreur: {str(e)}', 'danger')
     return render_template('plots/edit.html', plot=plot)
 
-@app.route('/plots/delete/<int:id>')
+@app.route('/plots/delete/<int:id>', methods=['POST'])
 @login_required
+@admin_required
 def delete_plot(id):
-    plot = Plot.query.get_or_404(id)
-    db.session.delete(plot)
-    db.session.commit()
-    flash('Parcelle supprimee avec succes!', 'success')
+    plot = db.get_or_404(Plot, id)
+    try:
+        db.session.delete(plot)
+        db.session.commit()
+        flash('Parcelle supprimee avec succes!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Impossible de supprimer: {str(e)}', 'danger')
     return redirect(url_for('plots'))
 
 # ========== CULTURES ==========
@@ -211,43 +388,53 @@ def crops():
 
 @app.route('/crops/create', methods=['GET', 'POST'])
 @login_required
+@manager_required
 def create_crop():
     plots = Plot.query.all()
     if request.method == 'POST':
-        crop = Crop(
-            parcelle_id=int(request.form.get('parcelle_id')),
-            nom_culture=request.form.get('nom_culture'),
-            variete=request.form.get('variete'),
-            date_semis=datetime.strptime(request.form.get('date_semis'), '%Y-%m-%d').date(),
-            date_recolte_prevue=datetime.strptime(request.form.get('date_recolte_prevue'), '%Y-%m-%d').date() if request.form.get('date_recolte_prevue') else None,
-            quantite_estimee=float(request.form.get('quantite_estimee')) if request.form.get('quantite_estimee') else None,
-            unite=request.form.get('unite'),
-            notes=request.form.get('notes')
-        )
-        db.session.add(crop)
-        db.session.commit()
-        flash('Culture ajoutee avec succes!', 'success')
-        return redirect(url_for('crops'))
+        try:
+            crop = Crop(
+                parcelle_id=int(request.form.get('parcelle_id')),
+                nom_culture=request.form.get('nom_culture'),
+                variete=request.form.get('variete'),
+                date_semis=datetime.strptime(request.form.get('date_semis'), '%Y-%m-%d').date(),
+                date_recolte_prevue=datetime.strptime(request.form.get('date_recolte_prevue'), '%Y-%m-%d').date() if request.form.get('date_recolte_prevue') else None,
+                quantite_estimee=float(request.form.get('quantite_estimee')) if request.form.get('quantite_estimee') else None,
+                unite=request.form.get('unite'),
+                notes=request.form.get('notes')
+            )
+            db.session.add(crop)
+            db.session.commit()
+            flash('Culture ajoutee avec succes!', 'success')
+            return redirect(url_for('crops'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erreur: {str(e)}', 'danger')
     return render_template('crops/create.html', plots=plots)
 
 @app.route('/crops/edit/<int:id>', methods=['GET', 'POST'])
 @login_required
+@manager_required
 def edit_crop(id):
-    crop = Crop.query.get_or_404(id)
+    crop = db.get_or_404(Crop, id)
     plots = Plot.query.all()
     if request.method == 'POST':
-        crop.parcelle_id = int(request.form.get('parcelle_id'))
-        crop.nom_culture = request.form.get('nom_culture')
-        crop.variete = request.form.get('variete')
-        crop.date_semis = datetime.strptime(request.form.get('date_semis'), '%Y-%m-%d').date()
-        crop.date_recolte_prevue = datetime.strptime(request.form.get('date_recolte_prevue'), '%Y-%m-%d').date() if request.form.get('date_recolte_prevue') else None
-        crop.quantite_estimee = float(request.form.get('quantite_estimee')) if request.form.get('quantite_estimee') else None
-        crop.unite = request.form.get('unite')
-        crop.statut = request.form.get('statut')
-        crop.notes = request.form.get('notes')
-        db.session.commit()
-        flash('Culture modifiee avec succes!', 'success')
-        return redirect(url_for('crops'))
+        try:
+            crop.parcelle_id = int(request.form.get('parcelle_id'))
+            crop.nom_culture = request.form.get('nom_culture')
+            crop.variete = request.form.get('variete')
+            crop.date_semis = datetime.strptime(request.form.get('date_semis'), '%Y-%m-%d').date()
+            crop.date_recolte_prevue = datetime.strptime(request.form.get('date_recolte_prevue'), '%Y-%m-%d').date() if request.form.get('date_recolte_prevue') else None
+            crop.quantite_estimee = float(request.form.get('quantite_estimee')) if request.form.get('quantite_estimee') else None
+            crop.unite = request.form.get('unite')
+            crop.statut = request.form.get('statut')
+            crop.notes = request.form.get('notes')
+            db.session.commit()
+            flash('Culture modifiee avec succes!', 'success')
+            return redirect(url_for('crops'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erreur: {str(e)}', 'danger')
     return render_template('crops/edit.html', crop=crop, plots=plots)
 
 # ========== DEPENSES ==========
@@ -259,27 +446,30 @@ def expenses():
 
 @app.route('/expenses/create', methods=['GET', 'POST'])
 @login_required
+@manager_required
 def create_expense():
     plots = Plot.query.all()
-    categories = ['Semences', 'Engrais', 'Eau', 'Carburant', 'Salaires', 
-                  'Transport', 'Reparation materiel', 'Electricite', 
+    categories = ['Semences', 'Engrais', 'Eau', 'Carburant', 'Salaires',
+                  'Transport', 'Reparation materiel', 'Electricite',
                   'Produits veterinaires', 'Nourriture animale', 'Loyer', 'Assurances', 'Autre']
-    
     if request.method == 'POST':
-        expense = Expense(
-            categorie=request.form.get('categorie'),
-            montant_tnd=float(request.form.get('montant_tnd')),
-            date_depense=datetime.strptime(request.form.get('date_depense'), '%Y-%m-%d').date(),
-            description=request.form.get('description'),
-            parcelle_id=int(request.form.get('parcelle_id')) if request.form.get('parcelle_id') else None,
-            fournisseur=request.form.get('fournisseur'),
-            reference=request.form.get('reference')
-        )
-        db.session.add(expense)
-        db.session.commit()
-        flash('Depense ajoutee avec succes!', 'success')
-        return redirect(url_for('expenses'))
-    
+        try:
+            expense = Expense(
+                categorie=request.form.get('categorie'),
+                montant_tnd=float(request.form.get('montant_tnd')),
+                date_depense=datetime.strptime(request.form.get('date_depense'), '%Y-%m-%d').date(),
+                description=request.form.get('description'),
+                parcelle_id=int(request.form.get('parcelle_id')) if request.form.get('parcelle_id') else None,
+                fournisseur=request.form.get('fournisseur'),
+                reference=request.form.get('reference')
+            )
+            db.session.add(expense)
+            db.session.commit()
+            flash('Depense ajoutee avec succes!', 'success')
+            return redirect(url_for('expenses'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erreur: {str(e)}', 'danger')
     return render_template('expenses/create.html', plots=plots, categories=categories, now=datetime.now())
 
 # ========== REVENUS ==========
@@ -291,50 +481,61 @@ def revenues():
 
 @app.route('/revenues/create', methods=['GET', 'POST'])
 @login_required
+@manager_required
 def create_revenue():
     crops = Crop.query.all()
-    
     if request.method == 'POST':
-        quantite = float(request.form.get('quantite_vendue'))
-        prix = float(request.form.get('prix_unitaire_tnd'))
-        total = quantite * prix
-        
-        revenue = Revenue(
-            culture_id=int(request.form.get('culture_id')),
-            quantite_vendue=quantite,
-            prix_unitaire_tnd=prix,
-            revenu_total_tnd=total,
-            date_vente=datetime.strptime(request.form.get('date_vente'), '%Y-%m-%d').date(),
-            client=request.form.get('client'),
-            facture_numero=request.form.get('facture_numero'),
-            notes=request.form.get('notes')
-        )
-        db.session.add(revenue)
-        db.session.commit()
-        flash('Vente enregistree avec succes!', 'success')
-        return redirect(url_for('revenues'))
-    
+        try:
+            quantite = float(request.form.get('quantite_vendue'))
+            prix = float(request.form.get('prix_unitaire_tnd'))
+            total = quantite * prix
+            revenue = Revenue(
+                culture_id=int(request.form.get('culture_id')) if request.form.get('culture_id') else None,
+                quantite_vendue=quantite,
+                prix_unitaire_tnd=prix,
+                revenu_total_tnd=total,
+                date_vente=datetime.strptime(request.form.get('date_vente'), '%Y-%m-%d').date(),
+                client=request.form.get('client'),
+                facture_numero=request.form.get('facture_numero'),
+                notes=request.form.get('notes')
+            )
+            db.session.add(revenue)
+            db.session.commit()
+            flash('Vente enregistree avec succes!', 'success')
+            return redirect(url_for('revenues'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erreur: {str(e)}', 'danger')
     return render_template('revenues/create.html', crops=crops, now=datetime.now())
 
 @app.route('/revenues/delete/<int:id>', methods=['POST'])
 @login_required
+@manager_required
 def delete_revenue(id):
-    revenue = Revenue.query.get_or_404(id)
-    db.session.delete(revenue)
-    db.session.commit()
-    return jsonify({'success': True})
+    revenue = db.get_or_404(Revenue, id)
+    try:
+        db.session.delete(revenue)
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/revenues/delete/all', methods=['POST'])
 @login_required
+@admin_required
 def delete_all_revenues():
-    # Supprimer uniquement les revenus de test (sans culture associée ou avec client "Vente huile d'olive")
-    Revenu.query.filter(
-        (Revenue.culture_id == None) | 
-        (Revenue.client == 'Vente huile d\'olive') |
-        (Revenue.revenu_total_tnd == 0)
-    ).delete()
-    db.session.commit()
-    return jsonify({'success': True})
+    try:
+        Revenue.query.filter(
+            (Revenue.culture_id == None) |
+            (Revenue.client == "Vente huile d'olive") |
+            (Revenue.revenu_total_tnd == 0)
+        ).delete(synchronize_session=False)
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 # ========== STOCK ==========
 @app.route('/inventory')
@@ -345,66 +546,68 @@ def inventory():
 
 @app.route('/inventory/create', methods=['GET', 'POST'])
 @login_required
+@manager_required
 def create_inventory():
     categories = ['Engrais', 'Semences', 'Produits chimiques', 'Nourriture animale', 'Pieces materiel', 'Outils', 'Autre']
-    
     if request.method == 'POST':
-        item = Inventory(
-            produit=request.form.get('produit'),
-            categorie=request.form.get('categorie'),
-            quantite=float(request.form.get('quantite')),
-            unite=request.form.get('unite'),
-            seuil_alerte=float(request.form.get('seuil_alerte')) if request.form.get('seuil_alerte') else 10,
-            prix_unitaire=float(request.form.get('prix_unitaire')) if request.form.get('prix_unitaire') else None,
-            emplacement=request.form.get('emplacement'),
-            fournisseur=request.form.get('fournisseur')
-        )
-        db.session.add(item)
-        db.session.commit()
-        
-        movement = InventoryMovement(
-            produit_id=item.id,
-            type_mouvement='entree',
-            quantite=float(request.form.get('quantite')),
-            raison='Creation initiale du stock',
-            utilisateur_id=current_user.id
-        )
-        db.session.add(movement)
-        db.session.commit()
-        
-        flash('Produit ajoute au stock avec succes!', 'success')
-        return redirect(url_for('inventory'))
-    
+        try:
+            item = Inventory(
+                produit=request.form.get('produit'),
+                categorie=request.form.get('categorie'),
+                quantite=float(request.form.get('quantite')),
+                unite=request.form.get('unite'),
+                seuil_alerte=float(request.form.get('seuil_alerte')) if request.form.get('seuil_alerte') else 10,
+                prix_unitaire=float(request.form.get('prix_unitaire')) if request.form.get('prix_unitaire') else None,
+                emplacement=request.form.get('emplacement'),
+                fournisseur=request.form.get('fournisseur')
+            )
+            db.session.add(item)
+            db.session.flush()
+            movement = InventoryMovement(
+                produit_id=item.id,
+                type_mouvement='entree',
+                quantite=float(request.form.get('quantite')),
+                raison='Creation initiale du stock',
+                utilisateur_id=current_user.id
+            )
+            db.session.add(movement)
+            db.session.commit()
+            flash('Produit ajoute au stock avec succes!', 'success')
+            return redirect(url_for('inventory'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erreur: {str(e)}', 'danger')
     return render_template('inventory/create.html', categories=categories)
 
 @app.route('/inventory/movement/<int:id>', methods=['POST'])
 @login_required
+@manager_required
 def add_movement(id):
-    item = Inventory.query.get_or_404(id)
-    type_mvt = request.form.get('type_mouvement')
-    quantite = float(request.form.get('quantite'))
-    raison = request.form.get('raison')
-    
-    if type_mvt == 'sortie' and quantite > item.quantite:
-        flash('Quantite insuffisante en stock!', 'danger')
-        return redirect(url_for('inventory'))
-    
-    if type_mvt == 'entree':
-        item.quantite += quantite
-    else:
-        item.quantite -= quantite
-    
-    movement = InventoryMovement(
-        produit_id=item.id,
-        type_mouvement=type_mvt,
-        quantite=quantite,
-        raison=raison,
-        utilisateur_id=current_user.id
-    )
-    db.session.add(movement)
-    db.session.commit()
-    
-    flash('Mouvement de stock enregistre avec succes!', 'success')
+    item = db.get_or_404(Inventory, id)
+    try:
+        type_mvt = request.form.get('type_mouvement')
+        quantite = float(request.form.get('quantite'))
+        raison = request.form.get('raison')
+        if type_mvt == 'sortie' and quantite > item.quantite:
+            flash('Quantite insuffisante en stock!', 'danger')
+            return redirect(url_for('inventory'))
+        if type_mvt == 'entree':
+            item.quantite += quantite
+        else:
+            item.quantite -= quantite
+        movement = InventoryMovement(
+            produit_id=item.id,
+            type_mouvement=type_mvt,
+            quantite=quantite,
+            raison=raison,
+            utilisateur_id=current_user.id
+        )
+        db.session.add(movement)
+        db.session.commit()
+        flash('Mouvement de stock enregistre avec succes!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Erreur: {str(e)}', 'danger')
     return redirect(url_for('inventory'))
 
 # ========== EMPLOYES ==========
@@ -416,76 +619,89 @@ def employees():
 
 @app.route('/employees/create', methods=['GET', 'POST'])
 @login_required
+@manager_required
 def create_employee():
     if request.method == 'POST':
-        employee = Employee(
-            nom=request.form.get('nom'),
-            prenom=request.form.get('prenom'),
-            telephone=request.form.get('telephone'),
-            email=request.form.get('email'),
-            poste=request.form.get('poste'),
-            salaire_tnd=float(request.form.get('salaire_tnd')) if request.form.get('salaire_tnd') else None,
-            date_embauche=datetime.strptime(request.form.get('date_embauche'), '%Y-%m-%d').date() if request.form.get('date_embauche') else None,
-            date_naissance=datetime.strptime(request.form.get('date_naissance'), '%Y-%m-%d').date() if request.form.get('date_naissance') else None,
-            adresse=request.form.get('adresse'),
-            cin=request.form.get('cin'),
-            notes=request.form.get('notes')
-        )
-        db.session.add(employee)
-        db.session.commit()
-        flash('Employe ajoute avec succes!', 'success')
-        return redirect(url_for('employees'))
+        try:
+            employee = Employee(
+                nom=request.form.get('nom'),
+                prenom=request.form.get('prenom'),
+                telephone=request.form.get('telephone'),
+                email=request.form.get('email'),
+                poste=request.form.get('poste'),
+                salaire_tnd=float(request.form.get('salaire_tnd')) if request.form.get('salaire_tnd') else None,
+                date_embauche=datetime.strptime(request.form.get('date_embauche'), '%Y-%m-%d').date() if request.form.get('date_embauche') else None,
+                date_naissance=datetime.strptime(request.form.get('date_naissance'), '%Y-%m-%d').date() if request.form.get('date_naissance') else None,
+                adresse=request.form.get('adresse'),
+                cin=request.form.get('cin'),
+                notes=request.form.get('notes')
+            )
+            db.session.add(employee)
+            db.session.commit()
+            flash('Employe ajoute avec succes!', 'success')
+            return redirect(url_for('employees'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erreur: {str(e)}', 'danger')
     return render_template('employees/create.html')
 
 @app.route('/employees/edit/<int:id>', methods=['GET', 'POST'])
 @login_required
+@manager_required
 def edit_employee(id):
-    employee = Employee.query.get_or_404(id)
+    employee = db.get_or_404(Employee, id)
     if request.method == 'POST':
-        employee.nom = request.form.get('nom')
-        employee.prenom = request.form.get('prenom')
-        employee.telephone = request.form.get('telephone')
-        employee.email = request.form.get('email')
-        employee.poste = request.form.get('poste')
-        employee.salaire_tnd = float(request.form.get('salaire_tnd')) if request.form.get('salaire_tnd') else None
-        employee.date_embauche = datetime.strptime(request.form.get('date_embauche'), '%Y-%m-%d').date() if request.form.get('date_embauche') else None
-        employee.date_naissance = datetime.strptime(request.form.get('date_naissance'), '%Y-%m-%d').date() if request.form.get('date_naissance') else None
-        employee.adresse = request.form.get('adresse')
-        employee.cin = request.form.get('cin')
-        employee.statut = request.form.get('statut')
-        employee.notes = request.form.get('notes')
-        db.session.commit()
-        flash('Employe modifie avec succes!', 'success')
-        return redirect(url_for('employees'))
+        try:
+            employee.nom = request.form.get('nom')
+            employee.prenom = request.form.get('prenom')
+            employee.telephone = request.form.get('telephone')
+            employee.email = request.form.get('email')
+            employee.poste = request.form.get('poste')
+            employee.salaire_tnd = float(request.form.get('salaire_tnd')) if request.form.get('salaire_tnd') else None
+            employee.date_embauche = datetime.strptime(request.form.get('date_embauche'), '%Y-%m-%d').date() if request.form.get('date_embauche') else None
+            employee.date_naissance = datetime.strptime(request.form.get('date_naissance'), '%Y-%m-%d').date() if request.form.get('date_naissance') else None
+            employee.adresse = request.form.get('adresse')
+            employee.cin = request.form.get('cin')
+            employee.statut = request.form.get('statut')
+            employee.notes = request.form.get('notes')
+            db.session.commit()
+            flash('Employe modifie avec succes!', 'success')
+            return redirect(url_for('employees'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erreur: {str(e)}', 'danger')
     return render_template('employees/edit.html', employee=employee)
 
 @app.route('/employees/attendance/<int:id>', methods=['GET', 'POST'])
 @login_required
+@manager_required
 def manage_attendance(id):
-    employee = Employee.query.get_or_404(id)
+    employee = db.get_or_404(Employee, id)
     if request.method == 'POST':
-        date = datetime.strptime(request.form.get('date'), '%Y-%m-%d').date()
-        arrivee = datetime.strptime(request.form.get('heure_arrivee'), '%H:%M').time() if request.form.get('heure_arrivee') else None
-        depart = datetime.strptime(request.form.get('heure_depart'), '%H:%M').time() if request.form.get('heure_depart') else None
-        
-        heures = 0
-        if arrivee and depart:
-            delta = datetime.combine(date, depart) - datetime.combine(date, arrivee)
-            heures = delta.total_seconds() / 3600
-        
-        attendance = Attendance(
-            employe_id=employee.id,
-            date=date,
-            heure_arrivee=arrivee,
-            heure_depart=depart,
-            heures_travaillees=heures,
-            statut=request.form.get('statut'),
-            notes=request.form.get('notes')
-        )
-        db.session.add(attendance)
-        db.session.commit()
-        flash('Presence enregistree avec succes!', 'success')
-        return redirect(url_for('employees'))
+        try:
+            date = datetime.strptime(request.form.get('date'), '%Y-%m-%d').date()
+            arrivee = datetime.strptime(request.form.get('heure_arrivee'), '%H:%M').time() if request.form.get('heure_arrivee') else None
+            depart = datetime.strptime(request.form.get('heure_depart'), '%H:%M').time() if request.form.get('heure_depart') else None
+            heures = 0
+            if arrivee and depart:
+                delta = datetime.combine(date, depart) - datetime.combine(date, arrivee)
+                heures = max(0, delta.total_seconds() / 3600)
+            attendance = Attendance(
+                employe_id=employee.id,
+                date=date,
+                heure_arrivee=arrivee,
+                heure_depart=depart,
+                heures_travaillees=heures,
+                statut=request.form.get('statut'),
+                notes=request.form.get('notes')
+            )
+            db.session.add(attendance)
+            db.session.commit()
+            flash('Presence enregistree avec succes!', 'success')
+            return redirect(url_for('employees'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erreur: {str(e)}', 'danger')
     return render_template('employees/attendance.html', employee=employee)
 
 # ========== RECOLTES ==========
@@ -498,81 +714,84 @@ def harvests():
 @app.route('/harvests/<int:id>')
 @login_required
 def harvests_detail(id):
-    harvest = Harvest.query.get_or_404(id)
+    harvest = db.get_or_404(Harvest, id)
     return render_template('harvests/detail.html', harvest=harvest)
 
 @app.route('/harvests/create/<int:crop_id>', methods=['GET', 'POST'])
 @login_required
+@manager_required
 def harvests_create(crop_id):
-    crop = Crop.query.get_or_404(crop_id)
-    
+    crop = db.get_or_404(Crop, crop_id)
     if request.method == 'POST':
-        date_recolte = datetime.strptime(request.form.get('date_recolte'), '%Y-%m-%d').date()
-        quantite = float(request.form.get('quantite_recoltee'))
-        pertes = float(request.form.get('pertes')) if request.form.get('pertes') else 0
-        
-        harvest = Harvest(
-            culture_id=crop.id,
-            date_recolte=date_recolte,
-            quantite_recoltee=quantite,
-            unite=request.form.get('unite'),
-            qualite=request.form.get('qualite'),
-            pertes=pertes,
-            main_doeuvre=int(request.form.get('main_doeuvre')) if request.form.get('main_doeuvre') else None,
-            notes=request.form.get('notes')
-        )
-        db.session.add(harvest)
-        
-        crop.quantite_recoltee = quantite
-        crop.date_recolte_reelle = date_recolte
-        crop.statut = 'recolte'
-        
-        db.session.commit()
-        flash('Recolte enregistree avec succes!', 'success')
-        return redirect(url_for('crops'))
-    
+        try:
+            date_recolte = datetime.strptime(request.form.get('date_recolte'), '%Y-%m-%d').date()
+            quantite = float(request.form.get('quantite_recoltee'))
+            pertes = float(request.form.get('pertes')) if request.form.get('pertes') else 0
+            harvest = Harvest(
+                culture_id=crop.id,
+                date_recolte=date_recolte,
+                quantite_recoltee=quantite,
+                unite=request.form.get('unite'),
+                qualite=request.form.get('qualite'),
+                pertes=pertes,
+                main_doeuvre=int(request.form.get('main_doeuvre')) if request.form.get('main_doeuvre') else None,
+                notes=request.form.get('notes')
+            )
+            db.session.add(harvest)
+            crop.quantite_recoltee = quantite
+            crop.date_recolte_reelle = date_recolte
+            crop.statut = 'recolte'
+            db.session.commit()
+            flash('Recolte enregistree avec succes!', 'success')
+            return redirect(url_for('crops'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erreur: {str(e)}', 'danger')
     qualites = ['Extra', 'Premiere', 'Deuxieme', 'Standard', 'Conservation']
     return render_template('harvests/create.html', crop=crop, now=datetime.now(), qualites=qualites)
 
 @app.route('/harvests/delete/<int:id>', methods=['POST'])
 @login_required
+@manager_required
 def harvests_delete(id):
-    harvest = Harvest.query.get_or_404(id)
-    db.session.delete(harvest)
-    db.session.commit()
-    return jsonify({'success': True})
+    harvest = db.get_or_404(Harvest, id)
+    try:
+        db.session.delete(harvest)
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/harvests/export')
 @login_required
 def harvests_export():
     from openpyxl import Workbook
-    import os
-    
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Recoltes"
-    
-    headers = ['Date recolte', 'Culture', 'Parcelle', 'Quantite', 'Unite', 'Qualite', 'Pertes (%)']
-    for col, header in enumerate(headers, 1):
-        ws.cell(row=1, column=col, value=header)
-    
-    harvests = Harvest.query.all()
-    for row, harvest in enumerate(harvests, 2):
-        ws.cell(row=row, column=1, value=harvest.date_recolte.strftime('%d/%m/%Y'))
-        ws.cell(row=row, column=2, value=harvest.crop.nom_culture if harvest.crop else '-')
-        ws.cell(row=row, column=3, value=harvest.crop.plot.nom if harvest.crop and harvest.crop.plot else '-')
-        ws.cell(row=row, column=4, value=float(harvest.quantite_recoltee))
-        ws.cell(row=row, column=5, value=harvest.unite)
-        ws.cell(row=row, column=6, value=harvest.qualite or '-')
-        ws.cell(row=row, column=7, value=float(harvest.pertes))
-    
-    filename = f"recoltes_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-    filepath = os.path.join('exports', filename)
-    wb.save(filepath)
-    
-    return jsonify({'success': True, 'filename': filename})
+    try:
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Recoltes"
+        headers = ['Date recolte', 'Culture', 'Parcelle', 'Quantite', 'Unite', 'Qualite', 'Pertes (%)']
+        for col, header in enumerate(headers, 1):
+            ws.cell(row=1, column=col, value=header)
+        all_harvests = Harvest.query.all()
+        for row, harvest in enumerate(all_harvests, 2):
+            ws.cell(row=row, column=1, value=harvest.date_recolte.strftime('%d/%m/%Y'))
+            ws.cell(row=row, column=2, value=harvest.crop.nom_culture if harvest.crop else '-')
+            ws.cell(row=row, column=3, value=harvest.crop.plot.nom if harvest.crop and harvest.crop.plot else '-')
+            ws.cell(row=row, column=4, value=float(harvest.quantite_recoltee))
+            ws.cell(row=row, column=5, value=harvest.unite)
+            ws.cell(row=row, column=6, value=harvest.qualite or '-')
+            ws.cell(row=row, column=7, value=float(harvest.pertes))
+        filename = f"recoltes_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        exports_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'exports')
+        os.makedirs(exports_dir, exist_ok=True)
+        wb.save(os.path.join(exports_dir, filename))
+        return jsonify({'success': True, 'filename': filename})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
-# ========== ELEVAGE - DASHBOARD ==========
+# ========== ELEVAGE ==========
 @app.route('/livestock/dashboard')
 @login_required
 def livestock_dashboard():
@@ -583,7 +802,6 @@ def livestock_dashboard():
         AnimalProduction.date_production >= datetime.now().replace(day=1)
     ).scalar() or 0
     soins_recents = AnimalSoin.query.order_by(AnimalSoin.date_soin.desc()).limit(10).all()
-    
     return render_template('livestock/dashboard.html',
                          total_animaux=total_animaux,
                          animaux_actifs=animaux_actifs,
@@ -591,7 +809,6 @@ def livestock_dashboard():
                          production_mensuelle=float(production_mensuelle),
                          soins_recents=soins_recents)
 
-# ========== ELEVAGE - TYPES ==========
 @app.route('/livestock/types')
 @login_required
 def animal_types():
@@ -600,188 +817,193 @@ def animal_types():
 
 @app.route('/livestock/types/create', methods=['GET', 'POST'])
 @login_required
+@manager_required
 def create_animal_type():
     if request.method == 'POST':
-        animal_type = AnimalType(
-            nom=request.form.get('nom'),
-            categorie=request.form.get('categorie'),
-            description=request.form.get('description')
-        )
-        db.session.add(animal_type)
-        db.session.commit()
-        flash('Type d\'animal ajoute avec succes!', 'success')
-        return redirect(url_for('animal_types'))
+        try:
+            animal_type = AnimalType(
+                nom=request.form.get('nom'),
+                categorie=request.form.get('categorie'),
+                description=request.form.get('description')
+            )
+            db.session.add(animal_type)
+            db.session.commit()
+            flash("Type d'animal ajoute avec succes!", 'success')
+            return redirect(url_for('animal_types'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erreur: {str(e)}', 'danger')
     return render_template('livestock/create_type.html')
 
-# ========== ELEVAGE - ANIMAUX ==========
 @app.route('/livestock/animals')
 @login_required
 def animals():
-    animals = Animal.query.all()
-    return render_template('livestock/animals.html', animals=animals)
+    all_animals = Animal.query.all()
+    return render_template('livestock/animals.html', animals=all_animals)
 
 @app.route('/livestock/animals/create', methods=['GET', 'POST'])
 @login_required
+@manager_required
 def create_animal():
     types = AnimalType.query.all()
     plots = Plot.query.all()
-    
     if request.method == 'POST':
-        animal = Animal(
-            type_id=int(request.form.get('type_id')),
-            numero_identification=request.form.get('numero_identification'),
-            nom=request.form.get('nom'),
-            sexe=request.form.get('sexe'),
-            date_naissance=datetime.strptime(request.form.get('date_naissance'), '%Y-%m-%d').date() if request.form.get('date_naissance') else None,
-            race=request.form.get('race'),
-            couleur=request.form.get('couleur'),
-            poids_naissance=float(request.form.get('poids_naissance')) if request.form.get('poids_naissance') else None,
-            poids_actuel=float(request.form.get('poids_actuel')) if request.form.get('poids_actuel') else None,
-            prix_achat=float(request.form.get('prix_achat')) if request.form.get('prix_achat') else None,
-            date_achat=datetime.strptime(request.form.get('date_achat'), '%Y-%m-%d').date() if request.form.get('date_achat') else None,
-            provenance=request.form.get('provenance'),
-            parcelle_id=int(request.form.get('parcelle_id')) if request.form.get('parcelle_id') else None,
-            notes=request.form.get('notes')
-        )
-        db.session.add(animal)
-        db.session.commit()
-        flash('Animal ajoute avec succes!', 'success')
-        return redirect(url_for('animals'))
-    
+        try:
+            animal = Animal(
+                type_id=int(request.form.get('type_id')),
+                numero_identification=request.form.get('numero_identification'),
+                nom=request.form.get('nom'),
+                sexe=request.form.get('sexe'),
+                date_naissance=datetime.strptime(request.form.get('date_naissance'), '%Y-%m-%d').date() if request.form.get('date_naissance') else None,
+                race=request.form.get('race'),
+                couleur=request.form.get('couleur'),
+                poids_naissance=float(request.form.get('poids_naissance')) if request.form.get('poids_naissance') else None,
+                poids_actuel=float(request.form.get('poids_actuel')) if request.form.get('poids_actuel') else None,
+                prix_achat=float(request.form.get('prix_achat')) if request.form.get('prix_achat') else None,
+                date_achat=datetime.strptime(request.form.get('date_achat'), '%Y-%m-%d').date() if request.form.get('date_achat') else None,
+                provenance=request.form.get('provenance'),
+                parcelle_id=int(request.form.get('parcelle_id')) if request.form.get('parcelle_id') else None,
+                notes=request.form.get('notes')
+            )
+            db.session.add(animal)
+            db.session.commit()
+            flash('Animal ajoute avec succes!', 'success')
+            return redirect(url_for('animals'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erreur: {str(e)}', 'danger')
     return render_template('livestock/create_animal.html', types=types, plots=plots)
 
 @app.route('/livestock/animals/<int:id>')
 @login_required
 def animal_detail(id):
-    animal = Animal.query.get_or_404(id)
+    animal = db.get_or_404(Animal, id)
     soins = AnimalSoin.query.filter_by(animal_id=id).order_by(AnimalSoin.date_soin.desc()).all()
     productions = AnimalProduction.query.filter_by(animal_id=id).order_by(AnimalProduction.date_production.desc()).all()
     return render_template('livestock/animal_detail.html', animal=animal, soins=soins, productions=productions, now=datetime.now())
 
 @app.route('/livestock/animals/edit/<int:id>', methods=['GET', 'POST'])
 @login_required
+@manager_required
 def edit_animal(id):
-    animal = Animal.query.get_or_404(id)
+    animal = db.get_or_404(Animal, id)
     types = AnimalType.query.all()
     plots = Plot.query.all()
-    
     if request.method == 'POST':
-        animal.type_id = int(request.form.get('type_id'))
-        animal.numero_identification = request.form.get('numero_identification')
-        animal.nom = request.form.get('nom')
-        animal.sexe = request.form.get('sexe')
-        animal.date_naissance = datetime.strptime(request.form.get('date_naissance'), '%Y-%m-%d').date() if request.form.get('date_naissance') else None
-        animal.race = request.form.get('race')
-        animal.couleur = request.form.get('couleur')
-        animal.poids_naissance = float(request.form.get('poids_naissance')) if request.form.get('poids_naissance') else None
-        animal.poids_actuel = float(request.form.get('poids_actuel')) if request.form.get('poids_actuel') else None
-        animal.prix_achat = float(request.form.get('prix_achat')) if request.form.get('prix_achat') else None
-        animal.date_achat = datetime.strptime(request.form.get('date_achat'), '%Y-%m-%d').date() if request.form.get('date_achat') else None
-        animal.provenance = request.form.get('provenance')
-        animal.parcelle_id = int(request.form.get('parcelle_id')) if request.form.get('parcelle_id') else None
-        animal.statut = request.form.get('statut')
-        animal.notes = request.form.get('notes')
-        db.session.commit()
-        flash('Animal modifie avec succes!', 'success')
-        return redirect(url_for('animals'))
-    
+        try:
+            animal.type_id = int(request.form.get('type_id'))
+            animal.numero_identification = request.form.get('numero_identification')
+            animal.nom = request.form.get('nom')
+            animal.sexe = request.form.get('sexe')
+            animal.date_naissance = datetime.strptime(request.form.get('date_naissance'), '%Y-%m-%d').date() if request.form.get('date_naissance') else None
+            animal.race = request.form.get('race')
+            animal.couleur = request.form.get('couleur')
+            animal.poids_naissance = float(request.form.get('poids_naissance')) if request.form.get('poids_naissance') else None
+            animal.poids_actuel = float(request.form.get('poids_actuel')) if request.form.get('poids_actuel') else None
+            animal.prix_achat = float(request.form.get('prix_achat')) if request.form.get('prix_achat') else None
+            animal.date_achat = datetime.strptime(request.form.get('date_achat'), '%Y-%m-%d').date() if request.form.get('date_achat') else None
+            animal.provenance = request.form.get('provenance')
+            animal.parcelle_id = int(request.form.get('parcelle_id')) if request.form.get('parcelle_id') else None
+            animal.statut = request.form.get('statut')
+            animal.notes = request.form.get('notes')
+            db.session.commit()
+            flash('Animal modifie avec succes!', 'success')
+            return redirect(url_for('animals'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erreur: {str(e)}', 'danger')
     return render_template('livestock/edit_animal.html', animal=animal, types=types, plots=plots, now=datetime.now())
 
-# ========== ELEVAGE - SOINS ==========
 @app.route('/livestock/soins/create/<int:animal_id>', methods=['GET', 'POST'])
 @login_required
+@manager_required
 def create_soin(animal_id):
-    animal = Animal.query.get_or_404(animal_id)
-    
+    animal = db.get_or_404(Animal, animal_id)
     if request.method == 'POST':
-        soin = AnimalSoin(
-            animal_id=animal_id,
-            date_soin=datetime.strptime(request.form.get('date_soin'), '%Y-%m-%d').date(),
-            type_soin=request.form.get('type_soin'),
-            description=request.form.get('description'),
-            veterinaire=request.form.get('veterinaire'),
-            cout_tnd=float(request.form.get('cout_tnd')) if request.form.get('cout_tnd') else None,
-            produits_utilises=request.form.get('produits_utilises'),
-            prochain_rappel=datetime.strptime(request.form.get('prochain_rappel'), '%Y-%m-%d').date() if request.form.get('prochain_rappel') else None,
-            notes=request.form.get('notes')
-        )
-        db.session.add(soin)
-        db.session.commit()
-        flash('Soin enregistre avec succes!', 'success')
-        return redirect(url_for('animal_detail', id=animal_id))
-    
+        try:
+            soin = AnimalSoin(
+                animal_id=animal_id,
+                date_soin=datetime.strptime(request.form.get('date_soin'), '%Y-%m-%d').date(),
+                type_soin=request.form.get('type_soin'),
+                description=request.form.get('description'),
+                veterinaire=request.form.get('veterinaire'),
+                cout_tnd=float(request.form.get('cout_tnd')) if request.form.get('cout_tnd') else None,
+                produits_utilises=request.form.get('produits_utilises'),
+                prochain_rappel=datetime.strptime(request.form.get('prochain_rappel'), '%Y-%m-%d').date() if request.form.get('prochain_rappel') else None,
+                notes=request.form.get('notes')
+            )
+            db.session.add(soin)
+            db.session.commit()
+            flash('Soin enregistre avec succes!', 'success')
+            return redirect(url_for('animal_detail', id=animal_id))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erreur: {str(e)}', 'danger')
     types_soin = ['Vaccination', 'Traitement', 'Consultation', 'Operation', 'Controle sanitaire']
     return render_template('livestock/create_soin.html', animal=animal, types_soin=types_soin, now=datetime.now())
 
-# ========== ELEVAGE - PRODUCTIONS ==========
 @app.route('/livestock/productions/create/<int:animal_id>', methods=['GET', 'POST'])
 @login_required
+@manager_required
 def create_production(animal_id):
-    animal = Animal.query.get_or_404(animal_id)
-    
+    animal = db.get_or_404(Animal, animal_id)
     if request.method == 'POST':
-        quantite = float(request.form.get('quantite'))
-        prix = float(request.form.get('prix_vente_unitaire')) if request.form.get('prix_vente_unitaire') else 0
-        revenu = quantite * prix
-        
-        production = AnimalProduction(
-            animal_id=animal_id,
-            date_production=datetime.strptime(request.form.get('date_production'), '%Y-%m-%d').date(),
-            type_produit=request.form.get('type_produit'),
-            quantite=quantite,
-            unite=request.form.get('unite'),
-            prix_vente_unitaire=prix,
-            revenu_total=revenu,
-            notes=request.form.get('notes')
-        )
-        db.session.add(production)
-        db.session.commit()
-        
-        if revenu > 0:
-            revenue = Revenue(
-                culture_id=None,
-                quantite_vendue=quantite,
-                prix_unitaire_tnd=prix,
-                revenu_total_tnd=revenu,
-                date_vente=datetime.now().date(),
-                client='Vente directe',
-                notes=f'Production de {animal.nom or animal.numero_identification}: {request.form.get("type_produit")}'
+        try:
+            quantite = float(request.form.get('quantite'))
+            prix = float(request.form.get('prix_vente_unitaire')) if request.form.get('prix_vente_unitaire') else 0
+            revenu = quantite * prix
+            production = AnimalProduction(
+                animal_id=animal_id,
+                date_production=datetime.strptime(request.form.get('date_production'), '%Y-%m-%d').date(),
+                type_produit=request.form.get('type_produit'),
+                quantite=quantite,
+                unite=request.form.get('unite'),
+                prix_vente_unitaire=prix,
+                revenu_total=revenu,
+                notes=request.form.get('notes')
             )
-            db.session.add(revenue)
+            db.session.add(production)
+            if revenu > 0:
+                revenue = Revenue(
+                    culture_id=None,
+                    quantite_vendue=quantite,
+                    prix_unitaire_tnd=prix,
+                    revenu_total_tnd=revenu,
+                    date_vente=datetime.now().date(),
+                    client='Vente directe',
+                    notes=f'Production de {animal.nom or animal.numero_identification}: {request.form.get("type_produit")}'
+                )
+                db.session.add(revenue)
             db.session.commit()
-        
-        flash(f'Production enregistree! Revenu: {revenu:.3f} TND', 'success')
-        return redirect(url_for('animal_detail', id=animal_id))
-    
+            flash(f'Production enregistree! Revenu: {revenu:.3f} TND', 'success')
+            return redirect(url_for('animal_detail', id=animal_id))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erreur: {str(e)}', 'danger')
     types_produit = ['Lait', 'Oeufs', 'Laine', 'Miel', 'Cuir', 'Viande']
     unites = ['L', 'kg', 'pieces', 'g']
     return render_template('livestock/create_production.html', animal=animal, types_produit=types_produit, unites=unites, now=datetime.now())
 
-# ========== ELEVAGE - ALIMENTATION ==========
 @app.route('/livestock/alimentations')
 @login_required
 def alimentations():
-    alimentations = Alimentation.query.order_by(Alimentation.date_alimentation.desc()).all()
-    return render_template('livestock/alimentations.html', alimentations=alimentations)
+    all_alim = Alimentation.query.order_by(Alimentation.date_alimentation.desc()).all()
+    return render_template('livestock/alimentations.html', alimentations=all_alim)
 
 @app.route('/livestock/alimentations/create', methods=['GET', 'POST'])
 @login_required
+@manager_required
 def create_alimentation():
-    from datetime import datetime
     animaux = Animal.query.filter_by(statut='actif').all()
-    
     if request.method == 'POST':
         try:
             animal_id = int(request.form.get('animal_id'))
-            animal = Animal.query.get(animal_id)
-            
+            animal = db.session.get(Animal, animal_id)
             if not animal:
                 flash('Animal non trouve!', 'danger')
                 return redirect(url_for('alimentations'))
-            
             date_alimentation = datetime.strptime(request.form.get('date_alimentation'), '%Y-%m-%d').date() if request.form.get('date_alimentation') else datetime.now().date()
             cout_tnd = float(request.form.get('cout_tnd')) if request.form.get('cout_tnd') else 0
-            
             alimentation = Alimentation(
                 animal_id=animal_id,
                 date_alimentation=date_alimentation,
@@ -792,8 +1014,6 @@ def create_alimentation():
                 notes=request.form.get('notes')
             )
             db.session.add(alimentation)
-            
-            # Ajouter automatiquement la dépense
             if cout_tnd > 0:
                 expense = Expense(
                     categorie='Nourriture animale',
@@ -803,123 +1023,116 @@ def create_alimentation():
                     fournisseur='Achats alimentation'
                 )
                 db.session.add(expense)
-            
             db.session.commit()
             flash(f'Alimentation enregistree avec succes! Cout: {cout_tnd:.3f} TND', 'success')
             return redirect(url_for('alimentations'))
-            
         except Exception as e:
             db.session.rollback()
             flash(f'Erreur: {str(e)}', 'danger')
-            return redirect(url_for('create_alimentation'))
-    
     return render_template('livestock/create_alimentation.html', animaux=animaux, now=datetime.now())
 
 # ========== OLIVIERS ==========
 @app.route('/oliviers')
 @login_required
 def oliviers():
-    oliviers = Olivier.query.all()
-    return render_template('oliviers/index.html', oliviers=oliviers)
+    all_oliviers = Olivier.query.all()
+    return render_template('oliviers/index.html', oliviers=all_oliviers)
 
 @app.route('/oliviers/create', methods=['GET', 'POST'])
 @login_required
+@manager_required
 def create_olivier():
     parcelles = Plot.query.all()
     varietes = ['Chemlali', 'Chetoui', 'Zarrazi', 'Oueslati', 'Sayali', 'Autre']
-    
     if request.method == 'POST':
-        olivier = Olivier(
-            parcelle_id=int(request.form.get('parcelle_id')),
-            numero_arbre=request.form.get('numero_arbre'),
-            variete=request.form.get('variete'),
-            age=int(request.form.get('age')) if request.form.get('age') else None,
-            date_plantation=datetime.strptime(request.form.get('date_plantation'), '%Y-%m-%d').date() if request.form.get('date_plantation') else None,
-            etat_sante=request.form.get('etat_sante'),
-            notes=request.form.get('notes')
-        )
-        db.session.add(olivier)
-        db.session.commit()
-        flash('Olivier ajoute avec succes!', 'success')
-        return redirect(url_for('oliviers'))
-    
+        try:
+            olivier = Olivier(
+                parcelle_id=int(request.form.get('parcelle_id')),
+                numero_arbre=request.form.get('numero_arbre'),
+                variete=request.form.get('variete'),
+                age=int(request.form.get('age')) if request.form.get('age') else None,
+                date_plantation=datetime.strptime(request.form.get('date_plantation'), '%Y-%m-%d').date() if request.form.get('date_plantation') else None,
+                etat_sante=request.form.get('etat_sante'),
+                notes=request.form.get('notes')
+            )
+            db.session.add(olivier)
+            db.session.commit()
+            flash('Olivier ajoute avec succes!', 'success')
+            return redirect(url_for('oliviers'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erreur: {str(e)}', 'danger')
     return render_template('oliviers/create.html', parcelles=parcelles, varietes=varietes)
 
 @app.route('/oliviers/edit/<int:id>', methods=['GET', 'POST'])
 @login_required
+@manager_required
 def edit_olivier(id):
-    from datetime import datetime
-    olivier = Olivier.query.get_or_404(id)
+    olivier = db.get_or_404(Olivier, id)
     parcelles = Plot.query.all()
     varietes = ['Chemlali', 'Chetoui', 'Zarrazi', 'Oueslati', 'Sayali', 'Autre']
     etats_sante = ['Excellent', 'Bon', 'Moyen', 'Mauvais']
-    
     if request.method == 'POST':
-        olivier.parcelle_id = int(request.form.get('parcelle_id'))
-        olivier.numero_arbre = request.form.get('numero_arbre')
-        olivier.variete = request.form.get('variete')
-        olivier.age = int(request.form.get('age')) if request.form.get('age') else None
-        olivier.date_plantation = datetime.strptime(request.form.get('date_plantation'), '%Y-%m-%d').date() if request.form.get('date_plantation') else None
-        olivier.statut = request.form.get('statut')
-        olivier.etat_sante = request.form.get('etat_sante')
-        olivier.notes = request.form.get('notes')
-        db.session.commit()
-        flash('Olivier modifie avec succes!', 'success')
-        return redirect(url_for('oliviers'))
-    
+        try:
+            olivier.parcelle_id = int(request.form.get('parcelle_id'))
+            olivier.numero_arbre = request.form.get('numero_arbre')
+            olivier.variete = request.form.get('variete')
+            olivier.age = int(request.form.get('age')) if request.form.get('age') else None
+            olivier.date_plantation = datetime.strptime(request.form.get('date_plantation'), '%Y-%m-%d').date() if request.form.get('date_plantation') else None
+            olivier.statut = request.form.get('statut')
+            olivier.etat_sante = request.form.get('etat_sante')
+            olivier.notes = request.form.get('notes')
+            db.session.commit()
+            flash('Olivier modifie avec succes!', 'success')
+            return redirect(url_for('oliviers'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erreur: {str(e)}', 'danger')
     return render_template('oliviers/edit.html', olivier=olivier, parcelles=parcelles, varietes=varietes, etats_sante=etats_sante)
 
 @app.route('/oliviers/<int:id>')
 @login_required
 def olivier_detail(id):
-    olivier = Olivier.query.get_or_404(id)
+    olivier = db.get_or_404(Olivier, id)
     productions = ProductionOlive.query.filter_by(olivier_id=id).order_by(ProductionOlive.annee.desc()).all()
     return render_template('oliviers/detail.html', olivier=olivier, productions=productions)
 
 @app.route('/oliviers/production/add/<int:olivier_id>', methods=['GET', 'POST'])
 @login_required
+@manager_required
 def add_production_olive(olivier_id):
-    from datetime import datetime
-    olivier = Olivier.query.get_or_404(olivier_id)
-    
+    olivier = db.get_or_404(Olivier, olivier_id)
     if request.method == 'POST':
-        quantite_olives = float(request.form.get('quantite_olives'))
-        taux_hutile = float(request.form.get('taux_hutile')) if request.form.get('taux_hutile') else 0
-        quantite_huile = quantite_olives * (taux_hutile / 100)
-        
-        production = ProductionOlive(
-            olivier_id=olivier_id,
-            annee=int(request.form.get('annee')),
-            quantite_olives=quantite_olives,
-            taux_hutile=taux_hutile,
-            quantite_huile=quantite_huile,
-            qualite_huile=request.form.get('qualite_huile'),
-            acidite=float(request.form.get('acidite')) if request.form.get('acidite') else None,
-            date_recolte=datetime.strptime(request.form.get('date_recolte'), '%Y-%m-%d').date() if request.form.get('date_recolte') else None,
-            notes=request.form.get('notes')
-        )
-        db.session.add(production)
-        
-        # Ajouter automatiquement au stock d'huile
-        if quantite_huile > 0:
-            stock = StockMoulin(
-                campagne=request.form.get('annee'),
-                variete=olivier.variete,
-                quantite_litres=quantite_huile,
-                qualite=request.form.get('qualite_huile'),
-                prix_vente_litre=float(request.form.get('prix_huile')) if request.form.get('prix_huile') else None,
-                date_stock=datetime.now().date(),
-                notes=f"Production de l'olivier {olivier.numero_arbre or ''}"
+        try:
+            quantite_olives = float(request.form.get('quantite_olives'))
+            taux_hutile = float(request.form.get('taux_hutile')) if request.form.get('taux_hutile') else 0
+            quantite_huile = quantite_olives * (taux_hutile / 100)
+            production = ProductionOlive(
+                olivier_id=olivier_id,
+                annee=int(request.form.get('annee')),
+                quantite_olives=quantite_olives,
+                taux_hutile=taux_hutile,
+                quantite_huile=quantite_huile,
+                qualite_huile=request.form.get('qualite_huile'),
+                acidite=float(request.form.get('acidite')) if request.form.get('acidite') else None,
+                date_recolte=datetime.strptime(request.form.get('date_recolte'), '%Y-%m-%d').date() if request.form.get('date_recolte') else None,
+                notes=request.form.get('notes')
             )
-            db.session.add(stock)
-        
-        db.session.commit()
-        
-        # Ajouter aux revenus
-        if quantite_huile > 0:
+            db.session.add(production)
+            if quantite_huile > 0:
+                stock = StockMoulin(
+                    campagne=request.form.get('annee'),
+                    variete=olivier.variete,
+                    quantite_litres=quantite_huile,
+                    qualite=request.form.get('qualite_huile'),
+                    prix_vente_litre=float(request.form.get('prix_huile')) if request.form.get('prix_huile') else None,
+                    date_stock=datetime.now().date(),
+                    notes=f"Production de l'olivier {olivier.numero_arbre or ''}"
+                )
+                db.session.add(stock)
+            db.session.commit()
             prix_huile = float(request.form.get('prix_huile')) if request.form.get('prix_huile') else 0
             revenu_total = quantite_huile * prix_huile
-            
             if revenu_total > 0:
                 revenue = Revenue(
                     culture_id=None,
@@ -927,15 +1140,16 @@ def add_production_olive(olivier_id):
                     prix_unitaire_tnd=prix_huile,
                     revenu_total_tnd=revenu_total,
                     date_vente=datetime.now().date(),
-                    client=request.form.get('client') or 'Vente huile d\'olive',
+                    client=request.form.get('client') or "Vente huile d'olive",
                     notes=f"Huile d'olive - {olivier.variete} - Campagne {request.form.get('annee')} - {quantite_huile:.2f} L"
                 )
                 db.session.add(revenue)
-        
-        db.session.commit()
-        flash(f'Production enregistree! {quantite_huile:.2f} L d\'huile', 'success')
-        return redirect(url_for('olivier_detail', id=olivier_id))
-    
+            db.session.commit()
+            flash(f"Production enregistree! {quantite_huile:.2f} L d'huile", 'success')
+            return redirect(url_for('olivier_detail', id=olivier_id))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erreur: {str(e)}', 'danger')
     qualites = ['Extra vierge', 'Vierge', 'Lampante']
     return render_template('oliviers/add_production.html', olivier=olivier, qualites=qualites, now=datetime.now())
 
@@ -947,26 +1161,27 @@ def stock_huile():
 
 @app.route('/stock/huile/add', methods=['GET', 'POST'])
 @login_required
+@manager_required
 def add_stock_huile():
-    from datetime import datetime
-    
     if request.method == 'POST':
-        stock = StockMoulin(
-            campagne=request.form.get('campagne'),
-            variete=request.form.get('variete'),
-            quantite_litres=float(request.form.get('quantite_litres')),
-            qualite=request.form.get('qualite'),
-            prix_vente_litre=float(request.form.get('prix_vente_litre')) if request.form.get('prix_vente_litre') else None,
-            date_stock=datetime.strptime(request.form.get('date_stock'), '%Y-%m-%d').date() if request.form.get('date_stock') else datetime.now().date(),
-            notes=request.form.get('notes')
-        )
-        db.session.add(stock)
-        db.session.commit()
-        flash('Stock d\'huile ajoute avec succes!', 'success')
-        return redirect(url_for('stock_huile'))
-    
-    now = datetime.now()
-    return render_template('oliviers/add_stock_huile.html', now=now)
+        try:
+            stock = StockMoulin(
+                campagne=request.form.get('campagne'),
+                variete=request.form.get('variete'),
+                quantite_litres=float(request.form.get('quantite_litres')),
+                qualite=request.form.get('qualite'),
+                prix_vente_litre=float(request.form.get('prix_vente_litre')) if request.form.get('prix_vente_litre') else None,
+                date_stock=datetime.strptime(request.form.get('date_stock'), '%Y-%m-%d').date() if request.form.get('date_stock') else datetime.now().date(),
+                notes=request.form.get('notes')
+            )
+            db.session.add(stock)
+            db.session.commit()
+            flash("Stock d'huile ajoute avec succes!", 'success')
+            return redirect(url_for('stock_huile'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erreur: {str(e)}', 'danger')
+    return render_template('oliviers/add_stock_huile.html', now=datetime.now())
 
 @app.route('/dashboard/oliveraie')
 @login_required
@@ -974,13 +1189,11 @@ def dashboard_oliveraie():
     total_oliviers = Olivier.query.count()
     total_actifs = Olivier.query.filter_by(statut='actif').count()
     production_totale = db.session.query(func.sum(ProductionOlive.quantite_huile)).scalar() or 0
-    
     production_par_variete = db.session.query(
         Olivier.variete,
         func.sum(ProductionOlive.quantite_huile).label('total_huile')
     ).join(ProductionOlive, Olivier.id == ProductionOlive.olivier_id).group_by(Olivier.variete).all()
-    
-    return render_template('oliviers/dashboard.html', 
+    return render_template('oliviers/dashboard.html',
                          total_oliviers=total_oliviers,
                          total_actifs=total_actifs,
                          production_totale=float(production_totale),
@@ -988,8 +1201,9 @@ def dashboard_oliveraie():
 
 @app.route('/oliviers/delete/<int:id>', methods=['POST'])
 @login_required
+@admin_required
 def delete_olivier(id):
-    olivier = Olivier.query.get_or_404(id)
+    olivier = db.get_or_404(Olivier, id)
     try:
         db.session.delete(olivier)
         db.session.commit()
@@ -998,9 +1212,7 @@ def delete_olivier(id):
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
 
-
 # ========== LANCEMENT ==========
 if __name__ == '__main__':
-    if not os.path.exists('exports'):
-        os.makedirs('exports')
+    os.makedirs('exports', exist_ok=True)
     app.run(debug=True, host='0.0.0.0', port=5000)
