@@ -35,7 +35,24 @@
         }
         .sidebar .nav-link:hover { background-color: rgba(255, 255, 255, 0.1); }
         .sidebar .nav-link i { margin-right: 10px; }
+        .sidebar-divider {
+            border-top: 1px solid rgba(255,255,255,0.2);
+            margin: 0.5rem 1rem;
+        }
+        .sidebar-section-label {
+            color: rgba(255,255,255,0.5);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 0.5rem 1rem 0.25rem;
+        }
         .navbar-brand { background-color: var(--agricultural-green); }
+        .role-badge {
+            font-size: 0.65rem;
+            padding: 2px 6px;
+            border-radius: 10px;
+            vertical-align: middle;
+        }
         @media (max-width: 767px) { .sidebar { display: none; } }
     </style>
 </head>
@@ -44,7 +61,21 @@
         <a class="navbar-brand col-md-3 col-lg-2 me-0 px-3" href="{{ url_for('dashboard') }}">
             <i class="fas fa-leaf"></i> Farm Management 🇹🇳
         </a>
-        <div class="navbar-nav">
+        <div class="navbar-nav ms-auto d-flex flex-row align-items-center">
+            <!-- Nom + rôle de l'utilisateur connecté -->
+            {% if current_user.is_authenticated %}
+            <span class="text-white me-3 small">
+                <i class="fas fa-user-circle me-1"></i>
+                {{ current_user.nom }}
+                {% if current_user.role == 'admin' %}
+                    <span class="role-badge bg-danger text-white">Admin</span>
+                {% elif current_user.role == 'manager' %}
+                    <span class="role-badge bg-primary text-white">Manager</span>
+                {% else %}
+                    <span class="role-badge bg-success text-white">Employé</span>
+                {% endif %}
+            </span>
+            {% endif %}
             <div class="nav-item text-nowrap">
                 <a class="nav-link px-3" href="{{ url_for('logout') }}">
                     <i class="fas fa-sign-out-alt"></i> Deconnexion
@@ -58,6 +89,7 @@
             <nav class="col-md-3 col-lg-2 d-md-block sidebar">
                 <div class="position-sticky pt-3">
                     <ul class="nav flex-column">
+                        <!-- MENU PRINCIPAL -->
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('dashboard') }}"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('plots') }}"><i class="fas fa-map-marker-alt"></i> Parcelles</a></li>
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('crops') }}"><i class="fas fa-seedling"></i> Cultures</a></li>
@@ -67,7 +99,29 @@
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('employees') }}"><i class="fas fa-users"></i> Employes</a></li>
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('harvests') }}"><i class="fas fa-tractor"></i> Recoltes</a></li>
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('livestock_dashboard') }}"><i class="fas fa-paw"></i> Elevage</a></li>
-			<li class="nav-item"><a class="nav-link" href="{{ url_for('oliviers') }}"><i class="fas fa-tree"></i> Oliveraie</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{{ url_for('oliviers') }}"><i class="fas fa-tree"></i> Oliveraie</a></li>
+
+                        <!-- SECTION COMPTE -->
+                        <div class="sidebar-divider"></div>
+                        <div class="sidebar-section-label">Mon compte</div>
+
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('profile') }}">
+                                <i class="fas fa-user-circle"></i> Mon Profil
+                            </a>
+                        </li>
+
+                        <!-- SECTION ADMIN UNIQUEMENT -->
+                        {% if current_user.is_authenticated and current_user.role == 'admin' %}
+                        <div class="sidebar-divider"></div>
+                        <div class="sidebar-section-label">Administration</div>
+
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('admin_users') }}">
+                                <i class="fas fa-users-cog"></i> Utilisateurs
+                            </a>
+                        </li>
+                        {% endif %}
                     </ul>
                 </div>
             </nav>
