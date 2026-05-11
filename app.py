@@ -1475,3 +1475,4 @@ class CoutMateriel(db.Model):
     description = db.Column(db.String(200))
     notes = db.Column(db.Text)
     date_creation = db.Column(db.DateTime, default=datetime.utcnow)
+
