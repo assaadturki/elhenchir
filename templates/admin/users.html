@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% block title %}Gestion des Utilisateurs{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="mb-0"><i class="fas fa-users-cog text-success me-2"></i>Gestion des Utilisateurs</h2>
+      <small class="text-muted">{{ users|length }} utilisateur(s) enregistré(s)</small>
+    </div>
+    <a href="{{ url_for('admin_create_user') }}" class="btn btn-success">
+      <i class="fas fa-user-plus me-1"></i> Nouvel utilisateur
+    </a>
+  </div>
+
+  <!-- Stats rapides -->
+  <div class="row mb-4">
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm text-center py-3">
+        <h4 class="text-success mb-0">{{ users|selectattr('role','eq','admin')|list|length }}</h4>
+        <small class="text-muted">Admins</small>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm text-center py-3">
+        <h4 class="text-primary mb-0">{{ users|selectattr('role','eq','manager')|list|length }}</h4>
+        <small class="text-muted">Managers</small>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm text-center py-3">
+        <h4 class="text-info mb-0">{{ users|selectattr('role','eq','employee')|list|length }}</h4>
+        <small class="text-muted">Employés</small>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-0 shadow-sm text-center py-3">
+        <h4 class="text-danger mb-0">{{ users|selectattr('is_active','eq',false)|list|length }}</h4>
+        <small class="text-muted">Désactivés</small>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tableau -->
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0">
+        <thead class="table-dark">
+          <tr>
+            <th>Nom</th>
+            <th>Email</th>
+            <th>Rôle</th>
+            <th>Téléphone</th>
+            <th>Statut</th>
+            <th>Créé le</th>
+            <th class="text-center">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for user in users %}
+          <tr class="{{ 'table-secondary opacity-50' if not user.is_active }}">
+            <td>
+              <div class="d-flex align-items-center">
+                <div class="avatar-circle me-2 bg-{{ 'danger' if user.role=='admin' else 'primary' if user.role=='manager' else 'success' }}">
+                  {{ user.nom[0].upper() }}
+                </div>
+                <strong>{{ user.nom }}</strong>
+                {% if user.id == current_user.id %}
+                  <span class="badge bg-secondary ms-1">Moi</span>
+                {% endif %}
+              </div>
+            </td>
+            <td>{{ user.email }}</td>
+            <td>
+              {% if user.role == 'admin' %}
+                <span class="badge bg-danger">Admin</span>
+              {% elif user.role == 'manager' %}
+                <span class="badge bg-primary">Manager</span>
+              {% else %}
+                <span class="badge bg-success">Employé</span>
+              {% endif %}
+            </td>
+            <td>{{ user.telephone or '—' }}</td>
+            <td>
+              <span class="badge {{ 'bg-success' if user.is_active else 'bg-secondary' }}">
+                {{ 'Actif' if user.is_active else 'Inactif' }}
+              </span>
+            </td>
+            <td>{{ user.date_creation.strftime('%d/%m/%Y') }}</td>
+            <td class="text-center">
+              <div class="btn-group btn-group-sm">
+                <!-- Modifier -->
+                <a href="{{ url_for('admin_edit_user', id=user.id) }}"
+                   class="btn btn-outline-primary" title="Modifier">
+                  <i class="fas fa-edit"></i>
+                </a>
+
+                <!-- Activer/Désactiver -->
+                {% if user.id != current_user.id %}
+                <button class="btn btn-outline-{{ 'warning' if user.is_active else 'success' }}"
+                        onclick="toggleUser({{ user.id }}, this)"
+                        title="{{ 'Désactiver' if user.is_active else 'Activer' }}">
+                  <i class="fas fa-{{ 'ban' if user.is_active else 'check' }}"></i>
+                </button>
+                {% endif %}
+
+                <!-- Reset mot de passe -->
+                <button class="btn btn-outline-info"
+                        onclick="showResetPassword({{ user.id }}, '{{ user.nom }}')"
+                        title="Réinitialiser mot de passe">
+                  <i class="fas fa-key"></i>
+                </button>
+
+                <!-- Supprimer -->
+                {% if user.id != current_user.id %}
+                <button class="btn btn-outline-danger"
+                        onclick="deleteUser({{ user.id }}, '{{ user.nom }}')"
+                        title="Supprimer">
+                  <i class="fas fa-trash"></i>
+                </button>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Reset Password -->
+<div class="modal fade" id="resetPasswordModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-key me-2"></i>Réinitialiser le mot de passe</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p>Nouveau mot de passe pour <strong id="resetUserName"></strong> :</p>
+        <input type="password" id="newPassword" class="form-control"
+               placeholder="Minimum 6 caractères" minlength="6">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-info text-white" onclick="confirmResetPassword()">
+          <i class="fas fa-save me-1"></i>Enregistrer
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.avatar-circle {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-weight: bold; font-size: 14px; flex-shrink: 0;
+}
+</style>
+
+<script>
+let currentResetUserId = null;
+
+function toggleUser(userId, btn) {
+  fetch(`/admin/users/toggle/${userId}`, { method: 'POST',
+    headers: { 'X-CSRFToken': '{{ csrf_token() if csrf_token is defined else "" }}' }
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) location.reload();
+    else alert('Erreur: ' + data.error);
+  });
+}
+
+function deleteUser(userId, nom) {
+  if (!confirm(`Supprimer l'utilisateur "${nom}" définitivement ?`)) return;
+  fetch(`/admin/users/delete/${userId}`, { method: 'POST' })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) location.reload();
+    else alert('Erreur: ' + data.error);
+  });
+}
+
+function showResetPassword(userId, nom) {
+  currentResetUserId = userId;
+  document.getElementById('resetUserName').textContent = nom;
+  document.getElementById('newPassword').value = '';
+  new bootstrap.Modal(document.getElementById('resetPasswordModal')).show();
+}
+
+function confirmResetPassword() {
+  const password = document.getElementById('newPassword').value;
+  if (password.length < 6) { alert('Minimum 6 caractères'); return; }
+  const form = new FormData();
+  form.append('new_password', password);
+  fetch(`/admin/users/reset-password/${currentResetUserId}`, { method: 'POST', body: form })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      bootstrap.Modal.getInstance(document.getElementById('resetPasswordModal')).hide();
+      alert('Mot de passe réinitialisé avec succès!');
+    } else alert('Erreur: ' + data.error);
+  });
+}
+</script>
+{% endblock %}

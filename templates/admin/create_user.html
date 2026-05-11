@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Créer un utilisateur{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width: 600px;">
+  <div class="d-flex align-items-center mb-4">
+    <a href="{{ url_for('admin_users') }}" class="btn btn-outline-secondary btn-sm me-3">
+      <i class="fas fa-arrow-left"></i>
+    </a>
+    <h2 class="mb-0"><i class="fas fa-user-plus text-success me-2"></i>Nouvel utilisateur</h2>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      <form method="POST">
+        <div class="mb-3">
+          <label class="form-label fw-bold">Nom complet <span class="text-danger">*</span></label>
+          <input type="text" name="nom" class="form-control" required placeholder="Ex: Ahmed Ben Ali">
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-bold">Email <span class="text-danger">*</span></label>
+          <input type="email" name="email" class="form-control" required placeholder="ex@email.com">
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-bold">Rôle <span class="text-danger">*</span></label>
+          <select name="role" class="form-select" required>
+            <option value="employee">👷 Employé — Lecture seule</option>
+            <option value="manager">👔 Manager — Lecture + Écriture</option>
+            <option value="admin">🔑 Admin — Accès complet</option>
+          </select>
+          <div class="mt-2 p-2 bg-light rounded small text-muted">
+            <strong>Employé :</strong> Peut voir les données, ne peut pas modifier.<br>
+            <strong>Manager :</strong> Peut voir et modifier, sauf gestion des users.<br>
+            <strong>Admin :</strong> Accès complet + gestion des utilisateurs.
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-bold">Mot de passe <span class="text-danger">*</span></label>
+          <div class="input-group">
+            <input type="password" name="password" id="password" class="form-control"
+                   required minlength="6" placeholder="Minimum 6 caractères">
+            <button type="button" class="btn btn-outline-secondary"
+                    onclick="togglePass()">
+              <i class="fas fa-eye" id="eyeIcon"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-bold">Téléphone</label>
+          <input type="tel" name="telephone" class="form-control" placeholder="+216 XX XXX XXX">
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label fw-bold">Adresse</label>
+          <textarea name="adresse" class="form-control" rows="2"></textarea>
+        </div>
+
+        <div class="d-grid gap-2">
+          <button type="submit" class="btn btn-success">
+            <i class="fas fa-save me-1"></i> Créer l'utilisateur
+          </button>
+          <a href="{{ url_for('admin_users') }}" class="btn btn-outline-secondary">Annuler</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function togglePass() {
+  const input = document.getElementById('password');
+  const icon = document.getElementById('eyeIcon');
+  if (input.type === 'password') {
+    input.type = 'text';
+    icon.className = 'fas fa-eye-slash';
+  } else {
+    input.type = 'password';
+    icon.className = 'fas fa-eye';
+  }
+}
+</script>
+{% endblock %}

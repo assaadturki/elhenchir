@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Modifier {{ user.nom }}{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width: 600px;">
+  <div class="d-flex align-items-center mb-4">
+    <a href="{{ url_for('admin_users') }}" class="btn btn-outline-secondary btn-sm me-3">
+      <i class="fas fa-arrow-left"></i>
+    </a>
+    <h2 class="mb-0"><i class="fas fa-user-edit text-primary me-2"></i>Modifier {{ user.nom }}</h2>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      <form method="POST">
+        <div class="mb-3">
+          <label class="form-label fw-bold">Nom complet <span class="text-danger">*</span></label>
+          <input type="text" name="nom" class="form-control" required value="{{ user.nom }}">
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-bold">Email <span class="text-danger">*</span></label>
+          <input type="email" name="email" class="form-control" required value="{{ user.email }}">
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-bold">Rôle <span class="text-danger">*</span></label>
+          <select name="role" class="form-select" required
+                  {% if user.id == current_user.id %}disabled{% endif %}>
+            <option value="employee" {{ 'selected' if user.role=='employee' }}>👷 Employé</option>
+            <option value="manager" {{ 'selected' if user.role=='manager' }}>👔 Manager</option>
+            <option value="admin" {{ 'selected' if user.role=='admin' }}>🔑 Admin</option>
+          </select>
+          {% if user.id == current_user.id %}
+            <input type="hidden" name="role" value="{{ user.role }}">
+            <small class="text-muted">Vous ne pouvez pas changer votre propre rôle.</small>
+          {% endif %}
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-bold">Nouveau mot de passe</label>
+          <div class="input-group">
+            <input type="password" name="password" id="password" class="form-control"
+                   placeholder="Laisser vide pour ne pas changer" minlength="6">
+            <button type="button" class="btn btn-outline-secondary" onclick="togglePass()">
+              <i class="fas fa-eye" id="eyeIcon"></i>
+            </button>
+          </div>
+          <small class="text-muted">Laisser vide pour conserver l'ancien mot de passe.</small>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-bold">Téléphone</label>
+          <input type="tel" name="telephone" class="form-control" value="{{ user.telephone or '' }}">
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-bold">Adresse</label>
+          <textarea name="adresse" class="form-control" rows="2">{{ user.adresse or '' }}</textarea>
+        </div>
+
+        {% if user.id != current_user.id %}
+        <div class="mb-4">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" name="is_active" id="isActive"
+                   {{ 'checked' if user.is_active }}>
+            <label class="form-check-label" for="isActive">Compte actif</label>
+          </div>
+        </div>
+        {% endif %}
+
+        <div class="d-grid gap-2">
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save me-1"></i> Enregistrer les modifications
+          </button>
+          <a href="{{ url_for('admin_users') }}" class="btn btn-outline-secondary">Annuler</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function togglePass() {
+  const input = document.getElementById('password');
+  const icon = document.getElementById('eyeIcon');
+  input.type = input.type === 'password' ? 'text' : 'password';
+  icon.className = input.type === 'password' ? 'fas fa-eye' : 'fas fa-eye-slash';
+}
+</script>
+{% endblock %}
