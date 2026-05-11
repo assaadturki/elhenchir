@@ -327,7 +327,7 @@ def delete_revenue(id):
 @app.route('/revenues/delete/all', methods=['POST'])
 @login_required
 def delete_all_revenues():
-    # Supprimer uniquement les revenus de test (sans culture associee ou avec client "Vente huile d'olive")
+    # Supprimer uniquement les revenus de test (sans culture associée ou avec client "Vente huile d'olive")
     Revenu.query.filter(
         (Revenue.culture_id == None) | 
         (Revenue.client == 'Vente huile d\'olive') |
@@ -793,7 +793,7 @@ def create_alimentation():
             )
             db.session.add(alimentation)
             
-            # Ajouter automatiquement la depense
+            # Ajouter automatiquement la dépense
             if cout_tnd > 0:
                 expense = Expense(
                     categorie='Nourriture animale',
