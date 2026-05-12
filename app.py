@@ -56,6 +56,119 @@ def forbidden(e):
     return render_template('errors/403.html'), 403
 
 
+
+# ========== MODELES OLIVIERS ==========
+class Olivier(db.Model):
+    __tablename__ = 'oliviers'
+    id = db.Column(db.Integer, primary_key=True)
+    parcelle_id = db.Column(db.Integer, db.ForeignKey('plots.id'), nullable=False)
+    numero_arbre = db.Column(db.String(50), unique=True)
+    variete = db.Column(db.String(100))
+    age = db.Column(db.Integer)
+    date_plantation = db.Column(db.Date)
+    statut = db.Column(db.String(50), default='actif')
+    etat_sante = db.Column(db.String(50))
+    notes = db.Column(db.Text)
+    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
+    productions = db.relationship('ProductionOlive', backref='olivier', lazy=True, cascade='all, delete-orphan')
+    traitements = db.relationship('TraitementOlivier', backref='olivier', lazy=True, cascade='all, delete-orphan')
+
+class ProductionOlive(db.Model):
+    __tablename__ = 'production_olives'
+    id = db.Column(db.Integer, primary_key=True)
+    olivier_id = db.Column(db.Integer, db.ForeignKey('oliviers.id'), nullable=False)
+    annee = db.Column(db.Integer, nullable=False)
+    quantite_olives = db.Column(db.Float, nullable=False)
+    taux_hutile = db.Column(db.Float)
+    quantite_huile = db.Column(db.Float)
+    qualite_huile = db.Column(db.String(50))
+    acidite = db.Column(db.Float)
+    date_recolte = db.Column(db.Date)
+    notes = db.Column(db.Text)
+    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
+
+class TraitementOlivier(db.Model):
+    __tablename__ = 'traitements_oliviers'
+    id = db.Column(db.Integer, primary_key=True)
+    olivier_id = db.Column(db.Integer, db.ForeignKey('oliviers.id'), nullable=False)
+    date_traitement = db.Column(db.Date, nullable=False)
+    type_traitement = db.Column(db.String(100))
+    description = db.Column(db.Text)
+    produits_utilises = db.Column(db.String(200))
+    cout_tnd = db.Column(db.Numeric(10, 2))
+    notes = db.Column(db.Text)
+
+class StockMoulin(db.Model):
+    __tablename__ = 'stock_moulin'
+    id = db.Column(db.Integer, primary_key=True)
+    campagne = db.Column(db.String(20))
+    variete = db.Column(db.String(100))
+    quantite_litres = db.Column(db.Float, nullable=False)
+    qualite = db.Column(db.String(50))
+    prix_vente_litre = db.Column(db.Numeric(10, 3))
+    date_stock = db.Column(db.Date, default=datetime.utcnow)
+    date_peremption = db.Column(db.Date)
+    notes = db.Column(db.Text)
+
+# ========== MODELES MATERIEL ==========
+class Materiel(db.Model):
+    __tablename__ = 'materiels'
+    id = db.Column(db.Integer, primary_key=True)
+    nom = db.Column(db.String(100), nullable=False)
+    type_materiel = db.Column(db.String(100))
+    marque = db.Column(db.String(100))
+    modele = db.Column(db.String(100))
+    numero_serie = db.Column(db.String(100), unique=True)
+    annee_achat = db.Column(db.Integer)
+    prix_achat = db.Column(db.Numeric(10, 2))
+    etat = db.Column(db.String(50), default='bon')
+    parcelle_id = db.Column(db.Integer, db.ForeignKey('plots.id'))
+    localisation = db.Column(db.String(200))
+    notes = db.Column(db.Text)
+    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
+    entretiens = db.relationship('EntretienMateriel', backref='materiel', lazy=True, cascade='all, delete-orphan')
+    pannes = db.relationship('PanneMateriel', backref='materiel', lazy=True, cascade='all, delete-orphan')
+    couts = db.relationship('CoutMateriel', backref='materiel', lazy=True, cascade='all, delete-orphan')
+
+class EntretienMateriel(db.Model):
+    __tablename__ = 'entretiens_materiel'
+    id = db.Column(db.Integer, primary_key=True)
+    materiel_id = db.Column(db.Integer, db.ForeignKey('materiels.id'), nullable=False)
+    type_entretien = db.Column(db.String(100))
+    date_entretien = db.Column(db.Date, nullable=False)
+    date_prochain = db.Column(db.Date)
+    description = db.Column(db.Text)
+    technicien = db.Column(db.String(200))
+    cout_tnd = db.Column(db.Numeric(10, 2))
+    pieces_changees = db.Column(db.Text)
+    notes = db.Column(db.Text)
+    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
+
+class PanneMateriel(db.Model):
+    __tablename__ = 'pannes_materiel'
+    id = db.Column(db.Integer, primary_key=True)
+    materiel_id = db.Column(db.Integer, db.ForeignKey('materiels.id'), nullable=False)
+    date_panne = db.Column(db.Date, nullable=False)
+    date_reparation = db.Column(db.Date)
+    description = db.Column(db.Text, nullable=False)
+    cause = db.Column(db.String(200))
+    technicien = db.Column(db.String(200))
+    cout_reparation = db.Column(db.Numeric(10, 2))
+    statut = db.Column(db.String(50), default='en_cours')
+    notes = db.Column(db.Text)
+    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
+
+class CoutMateriel(db.Model):
+    __tablename__ = 'couts_materiel'
+    id = db.Column(db.Integer, primary_key=True)
+    materiel_id = db.Column(db.Integer, db.ForeignKey('materiels.id'), nullable=False)
+    type_cout = db.Column(db.String(50))
+    montant_tnd = db.Column(db.Numeric(10, 2), nullable=False)
+    date_cout = db.Column(db.Date, nullable=False)
+    description = db.Column(db.String(200))
+    notes = db.Column(db.Text)
+    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
+
 # ========== LOAD USER ==========
 @login_manager.user_loader
 def load_user(user_id):
@@ -67,21 +180,37 @@ def init_db():
     with app.app_context():
         from sqlalchemy import text
         db.create_all()
-        # Migration colonnes manquantes
-        try:
-            db.session.execute(text("ALTER TABLE expenses ADD COLUMN IF NOT EXISTS facture_fichier VARCHAR(255)"))
-            db.session.execute(text("ALTER TABLE revenues ALTER COLUMN culture_id DROP NOT NULL"))
-            db.session.commit()
-        except:
-            db.session.rollback()
-        # Admin par defaut
-        admin_email = app.config.get('ADMIN_EMAIL', 'admin@farm.com')
+
+        # Creer dossiers
+        os.makedirs(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'exports'), exist_ok=True)
+        os.makedirs(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads', 'factures'), exist_ok=True)
+
+        # Migrations colonnes manquantes
+        migrations = [
+            "ALTER TABLE expenses ADD COLUMN IF NOT EXISTS facture_fichier VARCHAR(255)",
+            "ALTER TABLE revenues ALTER COLUMN culture_id DROP NOT NULL",
+        ]
+        for sql in migrations:
+            try:
+                db.session.execute(text(sql))
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                print(f"Migration skip: {e}")
+
+        # Creer admin par defaut
+        admin_email = os.environ.get('ADMIN_EMAIL', 'admin@farm.com')
         if not User.query.filter_by(email=admin_email).first():
-            admin = User(nom=app.config.get('ADMIN_NOM', 'Administrateur'),
-                        email=admin_email, role='admin')
-            admin.set_password(app.config.get('ADMIN_PASSWORD', 'admin123'))
+            admin = User(
+                nom=os.environ.get('ADMIN_NOM', 'Administrateur'),
+                email=admin_email,
+                role='admin'
+            )
+            admin.set_password(os.environ.get('ADMIN_PASSWORD', 'admin123'))
             db.session.add(admin)
             db.session.commit()
+            print(f"Admin cree: {admin_email}")
+
 
 init_db()
 
@@ -1572,62 +1701,3 @@ if __name__ == '__main__':
     env = os.environ.get('FLASK_ENV', 'development')
     debug = env == 'development'
     app.run(debug=debug, host='0.0.0.0', port=5000)
-
-# ========== MODELES MATERIEL ==========
-class Materiel(db.Model):
-    __tablename__ = 'materiels'
-    id = db.Column(db.Integer, primary_key=True)
-    nom = db.Column(db.String(100), nullable=False)
-    type_materiel = db.Column(db.String(100))
-    marque = db.Column(db.String(100))
-    modele = db.Column(db.String(100))
-    numero_serie = db.Column(db.String(100), unique=True)
-    annee_achat = db.Column(db.Integer)
-    prix_achat = db.Column(db.Numeric(10, 2))
-    etat = db.Column(db.String(50), default='bon')
-    parcelle_id = db.Column(db.Integer, db.ForeignKey('plots.id'))
-    localisation = db.Column(db.String(200))
-    notes = db.Column(db.Text)
-    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
-    entretiens = db.relationship('EntretienMateriel', backref='materiel', lazy=True, cascade='all, delete-orphan')
-    pannes = db.relationship('PanneMateriel', backref='materiel', lazy=True, cascade='all, delete-orphan')
-    couts = db.relationship('CoutMateriel', backref='materiel', lazy=True, cascade='all, delete-orphan')
-
-class EntretienMateriel(db.Model):
-    __tablename__ = 'entretiens_materiel'
-    id = db.Column(db.Integer, primary_key=True)
-    materiel_id = db.Column(db.Integer, db.ForeignKey('materiels.id'), nullable=False)
-    type_entretien = db.Column(db.String(100))
-    date_entretien = db.Column(db.Date, nullable=False)
-    date_prochain = db.Column(db.Date)
-    description = db.Column(db.Text)
-    technicien = db.Column(db.String(200))
-    cout_tnd = db.Column(db.Numeric(10, 2))
-    pieces_changees = db.Column(db.Text)
-    notes = db.Column(db.Text)
-    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
-
-class PanneMateriel(db.Model):
-    __tablename__ = 'pannes_materiel'
-    id = db.Column(db.Integer, primary_key=True)
-    materiel_id = db.Column(db.Integer, db.ForeignKey('materiels.id'), nullable=False)
-    date_panne = db.Column(db.Date, nullable=False)
-    date_reparation = db.Column(db.Date)
-    description = db.Column(db.Text, nullable=False)
-    cause = db.Column(db.String(200))
-    technicien = db.Column(db.String(200))
-    cout_reparation = db.Column(db.Numeric(10, 2))
-    statut = db.Column(db.String(50), default='en_cours')
-    notes = db.Column(db.Text)
-    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
-
-class CoutMateriel(db.Model):
-    __tablename__ = 'couts_materiel'
-    id = db.Column(db.Integer, primary_key=True)
-    materiel_id = db.Column(db.Integer, db.ForeignKey('materiels.id'), nullable=False)
-    type_cout = db.Column(db.String(50))
-    montant_tnd = db.Column(db.Numeric(10, 2), nullable=False)
-    date_cout = db.Column(db.Date, nullable=False)
-    description = db.Column(db.String(200))
-    notes = db.Column(db.Text)
-    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
