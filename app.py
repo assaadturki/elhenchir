@@ -64,34 +64,24 @@ def load_user(user_id):
 
 # ========== CREATION DES TABLES + ADMIN PAR DEFAUT ==========
 def init_db():
-  from sqlalchemy import text
-try:
-    db.session.execute(text("ALTER TABLE expenses ADD COLUMN IF NOT EXISTS facture_fichier VARCHAR(255)"))
-    db.session.execute(text("ALTER TABLE revenues ALTER COLUMN culture_id DROP NOT NULL"))
-    db.session.commit()
-except:
-    db.session.rollback()
     with app.app_context():
+        from sqlalchemy import text
         db.create_all()
-        # Creer le dossier exports avec chemin absolu
-        exports_dir = app.config['EXPORT_FOLDER']
-        uploads_dir = app.config['UPLOAD_FOLDER']
-        os.makedirs(exports_dir, exist_ok=True)
-        os.makedirs(uploads_dir, exist_ok=True)
-
-        # Creer admin depuis .env (pas de mot de passe hardcode)
-        admin_email = app.config['ADMIN_EMAIL']
+        # Migration colonnes manquantes
+        try:
+            db.session.execute(text("ALTER TABLE expenses ADD COLUMN IF NOT EXISTS facture_fichier VARCHAR(255)"))
+            db.session.execute(text("ALTER TABLE revenues ALTER COLUMN culture_id DROP NOT NULL"))
+            db.session.commit()
+        except:
+            db.session.rollback()
+        # Admin par defaut
+        admin_email = app.config.get('ADMIN_EMAIL', 'admin@farm.com')
         if not User.query.filter_by(email=admin_email).first():
-            admin = User(
-                nom=app.config['ADMIN_NOM'],
-                email=admin_email,
-                role='admin'
-            )
-            admin.set_password(app.config['ADMIN_PASSWORD'])
+            admin = User(nom=app.config.get('ADMIN_NOM', 'Administrateur'),
+                        email=admin_email, role='admin')
+            admin.set_password(app.config.get('ADMIN_PASSWORD', 'admin123'))
             db.session.add(admin)
             db.session.commit()
-            print(f"Admin cree: {admin_email}")
-
 
 init_db()
 
