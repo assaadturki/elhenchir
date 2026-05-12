@@ -64,6 +64,13 @@ def load_user(user_id):
 
 # ========== CREATION DES TABLES + ADMIN PAR DEFAUT ==========
 def init_db():
+  from sqlalchemy import text
+try:
+    db.session.execute(text("ALTER TABLE expenses ADD COLUMN IF NOT EXISTS facture_fichier VARCHAR(255)"))
+    db.session.execute(text("ALTER TABLE revenues ALTER COLUMN culture_id DROP NOT NULL"))
+    db.session.commit()
+except:
+    db.session.rollback()
     with app.app_context():
         db.create_all()
         # Creer le dossier exports avec chemin absolu
