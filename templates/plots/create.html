@@ -1,122 +1,163 @@
 {% extends "base.html" %}
-
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3">
     <h1 class="h2">🗺️ Ajouter une Parcelle</h1>
-    <div class="btn-toolbar">
-        <a href="{{ url_for('plots') }}" class="btn btn-secondary">
-            <i class="fas fa-arrow-left"></i> Retour
-        </a>
-    </div>
+    <a href="{{ url_for('plots') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Retour
+    </a>
 </div>
 
 <div class="row">
     <div class="col-md-8 mx-auto">
-        <div class="card">
+        <form method="POST">
+        <div class="card mb-3">
             <div class="card-header bg-success text-white">
                 <i class="fas fa-map-marker-alt"></i> Nouvelle parcelle
             </div>
             <div class="card-body">
-                <form method="POST">
                     <div class="mb-3">
-                        <label for="nom" class="form-label">Nom de la parcelle *</label>
-                        <input type="text" class="form-control" id="nom" name="nom" required>
-                        <small class="text-muted">Ex: Parcelle Nord, Champ de blé, Jardin Sud, etc.</small>
+                        <label class="form-label">Nom de la parcelle *</label>
+                        <input type="text" class="form-control" name="nom" required>
                     </div>
-                    
                     <div class="mb-3">
-                        <label for="superficie" class="form-label">Superficie (hectares) *</label>
-                        <input type="number" step="0.01" class="form-control" id="superficie" name="superficie" required>
-                        <small class="text-muted">Surface en hectares (ha)</small>
+                        <label class="form-label">Superficie (hectares) *</label>
+                        <input type="number" step="0.01" class="form-control" name="superficie" required>
                     </div>
-                    
                     <div class="mb-3">
-                        <label for="localisation" class="form-label">Localisation</label>
-                        <input type="text" class="form-control" id="localisation" name="localisation">
-                        <small class="text-muted">Ex: Zone agricole de Mornag, Région de Béja, etc.</small>
+                        <label class="form-label">Localisation</label>
+                        <input type="text" class="form-control" name="localisation">
                     </div>
-                    
-                    <div class="mb-3">
-                        <label for="type_sol" class="form-label">Type de sol</label>
-                        <select class="form-control" id="type_sol" name="type_sol">
-                            <option value="">Sélectionner un type de sol...</option>
-                            <option value="Argileux">🏺 Argileux</option>
-                            <option value="Sableux">🏖️ Sableux</option>
-                            <option value="Limoneux">🌾 Limoneux</option>
-                            <option value="Calcaire">🪨 Calcaire</option>
-                            <option value="Humifère">🌿 Humifère</option>
-                            <option value="Salin">🧂 Salin</option>
-                            <option value="Tourbeux">💧 Tourbeux</option>
-                            <option value="Latéritique">🔴 Latéritique</option>
-                        </select>
-                        <small class="text-muted">Type de sol de la parcelle</small>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Type de sol</label>
+                            <select class="form-control" name="type_sol">
+                                <option value="">-- Choisir --</option>
+                                <option value="Argileux">🏺 Argileux</option>
+                                <option value="Sableux">🏖️ Sableux</option>
+                                <option value="Limoneux">🌾 Limoneux</option>
+                                <option value="Calcaire">🪨 Calcaire</option>
+                                <option value="Humifere">🌿 Humifere</option>
+                                <option value="Salin">🧂 Salin</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Type d'irrigation</label>
+                            <select class="form-control" name="irrigation">
+                                <option value="">-- Choisir --</option>
+                                <option value="Goutte a goutte">💧 Goutte a goutte</option>
+                                <option value="Aspersion">💦 Aspersion</option>
+                                <option value="Gravitaire">🚿 Gravitaire</option>
+                                <option value="Pluviale">☔ Pluviale</option>
+                            </select>
+                        </div>
                     </div>
-                    
                     <div class="mb-3">
-                        <label for="irrigation" class="form-label">Type d'irrigation</label>
-                        <select class="form-control" id="irrigation" name="irrigation">
-                            <option value="">Sélectionner un type d'irrigation...</option>
-                            <option value="Goutte à goutte">💧 Goutte à goutte</option>
-                            <option value="Aspersion">💦 Aspersion</option>
-                            <option value="Gravitaire">🚿 Gravitaire (par canaux)</option>
-                            <option value="Pivot">🔄 Pivot central</option>
-                            <option value="Pluviale">☔ Pluviale (non irrigué)</option>
-                            <option value="Micro-aspersion">🌊 Micro-aspersion</option>
-                            <option value="Subsurface">🌍 Subsurface</option>
-                        </select>
-                        <small class="text-muted">Système d'irrigation utilisé</small>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="statut" class="form-label">Statut</label>
-                        <select class="form-control" id="statut" name="statut">
+                        <label class="form-label">Statut</label>
+                        <select class="form-control" name="statut">
                             <option value="active">🟢 Active</option>
                             <option value="en_repos">🟡 En repos</option>
-                            <option value="en_preparation">🟠 En préparation</option>
-                            <option value="abandonnee">🔴 Abandonnée</option>
+                            <option value="en_preparation">🟠 En preparation</option>
+                            <option value="abandonnee">🔴 Abandonnee</option>
                         </select>
                     </div>
-                    
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle"></i>
-                        <strong>Conseil :</strong> Renseignez le type de sol et l'irrigation pour un meilleur suivi des cultures adaptées.
-                    </div>
-                    
-                    <button type="submit" class="btn btn-success">
-                        <i class="fas fa-save"></i> Enregistrer
-                    </button>
-                    <a href="{{ url_for('plots') }}" class="btn btn-secondary">
-                        <i class="fas fa-times"></i> Annuler
-                    </a>
-                </form>
             </div>
         </div>
-    </div>
-</div>
 
-<div class="row mt-4">
-    <div class="col-md-12">
-        <div class="card">
-            <div class="card-header bg-secondary text-white">
-                <i class="fas fa-lightbulb"></i> Guide des types de sol
+        <!-- SECTION PROPRIETAIRES -->
+        <div class="card mb-3 border-warning">
+            <div class="card-header bg-warning text-dark">
+                <i class="fas fa-user-tie me-2"></i>Proprietaires &amp; Parts
+                <small class="ms-2">(optionnel — total doit etre 100%)</small>
             </div>
             <div class="card-body">
-                <div class="row">
-                    <div class="col-md-4">
-                        <h6>🏺 Argileux</h6>
-                        <p class="small">Riche en nutriments, bonne rétention d'eau. Idéal pour céréales et légumineuses.</p>
+                <div id="proprietaires-container">
+                    <div class="row proprietaire-row mb-2">
+                        <div class="col-md-7">
+                            <select name="prop_id[]" class="form-select">
+                                <option value="">-- Choisir un proprietaire --</option>
+                                {% for p in proprietaires %}
+                                <option value="{{ p.id }}">{{ p.nom }} {{ p.prenom or '' }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="input-group">
+                                <input type="number" name="prop_part[]" class="form-control part-input"
+                                       min="0" max="100" step="0.01" placeholder="Part %"
+                                       oninput="updateTotal()">
+                                <span class="input-group-text">%</span>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="button" class="btn btn-outline-danger w-100"
+                                    onclick="removeRow(this)">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
                     </div>
-                    <div class="col-md-4">
-                        <h6>🏖️ Sableux</h6>
-                        <p class="small">Drainage rapide, facile à travailler. Nécessite irrigation fréquente.</p>
-                    </div>
-                    <div class="col-md-4">
-                        <h6>🌾 Limoneux</h6>
-                        <p class="small">Sol équilibré, fertile. Idéal pour la plupart des cultures.</p>
-                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mt-2">
+                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="addRow()">
+                        <i class="fas fa-plus me-1"></i> Ajouter un proprietaire
+                    </button>
+                    <span class="badge bg-secondary" id="total-badge">Total: 0%</span>
                 </div>
             </div>
         </div>
+
+        <button type="submit" class="btn btn-success">
+            <i class="fas fa-save"></i> Enregistrer
+        </button>
+        <a href="{{ url_for('plots') }}" class="btn btn-secondary">
+            <i class="fas fa-times"></i> Annuler
+        </a>
+        </form>
     </div>
 </div>
+
+<script>
+const proprietairesOptions = `{% for p in proprietaires %}<option value="{{ p.id }}">{{ p.nom }} {{ p.prenom or '' }}</option>{% endfor %}`;
+
+function addRow() {
+    const container = document.getElementById('proprietaires-container');
+    const row = document.createElement('div');
+    row.className = 'row proprietaire-row mb-2';
+    row.innerHTML = `
+        <div class="col-md-7">
+            <select name="prop_id[]" class="form-select">
+                <option value="">-- Choisir un proprietaire --</option>
+                ${proprietairesOptions}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <div class="input-group">
+                <input type="number" name="prop_part[]" class="form-control part-input"
+                       min="0" max="100" step="0.01" placeholder="Part %"
+                       oninput="updateTotal()">
+                <span class="input-group-text">%</span>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <button type="button" class="btn btn-outline-danger w-100" onclick="removeRow(this)">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>`;
+    container.appendChild(row);
+}
+
+function removeRow(btn) {
+    btn.closest('.proprietaire-row').remove();
+    updateTotal();
+}
+
+function updateTotal() {
+    const inputs = document.querySelectorAll('.part-input');
+    let total = 0;
+    inputs.forEach(i => { total += parseFloat(i.value) || 0; });
+    const badge = document.getElementById('total-badge');
+    badge.textContent = `Total: ${total.toFixed(1)}%`;
+    badge.className = total > 100 ? 'badge bg-danger' : total === 100 ? 'badge bg-success' : 'badge bg-secondary';
+}
+</script>
 {% endblock %}
