@@ -1904,10 +1904,10 @@ def delete_proprietaire(id):
 def proprietaire_dashboard(id):
     prop = db.get_or_404(Proprietaire, id)
 
-    # RÃ©cupÃ©rer toutes les parts de ce propriÃ©taire
+    # Récupérer toutes les parts de ce propriétaire
     parts = PartProprietaire.query.filter_by(proprietaire_id=id).all()
 
-    # Calculer les biens possÃ©dÃ©s
+    # Calculer les biens possédés
     biens = {'parcelle': [], 'animal': [], 'olivier': [], 'materiel': []}
     for part in parts:
         biens[part.type_bien].append({
@@ -1915,10 +1915,10 @@ def proprietaire_dashboard(id):
             'part_pct': part.part_pct
         })
 
-    # Calculer dÃ©penses communes (sa part)
+    # Calculer dépenses communes (sa part)
     depenses_communes = _calcul_depenses_communes(id, parts)
 
-    # DÃ©penses personnelles
+    # Dépenses personnelles
     depenses_perso = DepenseProprietaire.query.filter_by(
         proprietaire_id=id, type_depense='personnelle'
     ).order_by(DepenseProprietaire.date_depense.desc()).all()
@@ -1953,12 +1953,12 @@ def _calcul_depenses_communes(proprietaire_id, parts):
         pct = part.part_pct / 100.0
 
         if part.type_bien == 'parcelle':
-            # DÃ©penses liÃ©es Ã  cette parcelle
+            # Dépenses liées à cette parcelle
             deps = Expense.query.filter_by(parcelle_id=part.bien_id).all()
             total += sum(float(d.montant_tnd) for d in deps) * pct
 
         elif part.type_bien == 'animal':
-            # CoÃ»ts soins + alimentation de cet animal
+            # Coûts soins + alimentation de cet animal
             soins = AnimalSoin.query.filter_by(animal_id=part.bien_id).all()
             alims = Alimentation.query.filter_by(animal_id=part.bien_id).all()
             total += sum(float(s.cout_tnd or 0) for s in soins) * pct
@@ -1970,7 +1970,7 @@ def _calcul_depenses_communes(proprietaire_id, parts):
             total += sum(float(t.cout_tnd or 0) for t in traitements) * pct
 
         elif part.type_bien == 'materiel':
-            # CoÃ»ts matÃ©riel
+            # Coûts matériel
             couts = CoutMateriel.query.filter_by(materiel_id=part.bien_id).all()
             total += sum(float(c.montant_tnd) for c in couts) * pct
 
@@ -2025,7 +2025,7 @@ def add_part_proprietaire():
             proprietaire_id = int(request.form.get('proprietaire_id'))
             part_pct = float(request.form.get('part_pct'))
 
-            # VÃ©rifier que le total des parts ne dÃ©passe pas 100%
+            # Vérifier que le total des parts ne dépasse pas 100%
             parts_existantes = PartProprietaire.query.filter_by(
                 type_bien=type_bien, bien_id=bien_id
             ).all()
@@ -2038,7 +2038,7 @@ def add_part_proprietaire():
                                        animals=animals_list, oliviers=oliviers_list,
                                        materiels=materiels_list)
 
-            # VÃ©rifier si ce propriÃ©taire a dÃ©jÃ  une part sur ce bien
+            # Vérifier si ce propriétaire a déjà une part sur ce bien
             existing = PartProprietaire.query.filter_by(
                 proprietaire_id=proprietaire_id, type_bien=type_bien, bien_id=bien_id
             ).first()
