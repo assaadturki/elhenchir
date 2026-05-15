@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Rapport Propriétaires{% endblock %}
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="d-flex align-items-center mb-4">
+    <a href="{{ url_for('proprietaires') }}" class="btn btn-outline-secondary btn-sm me-3">
+      <i class="fas fa-arrow-left"></i>
+    </a>
+    <h2 class="mb-0"><i class="fas fa-chart-pie text-primary me-2"></i>Rapport global — Propriétaires</h2>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0">
+        <thead class="table-dark">
+          <tr>
+            <th>Propriétaire</th>
+            <th class="text-center">Biens</th>
+            <th class="text-end">Dép. communes</th>
+            <th class="text-end">Dép. perso</th>
+            <th class="text-end">Total dépenses</th>
+            <th class="text-end">Revenus</th>
+            <th class="text-end">Bénéfice net</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rapport %}
+          <tr>
+            <td>
+              <strong>{{ r.proprietaire.nom }} {{ r.proprietaire.prenom or '' }}</strong><br>
+              <small class="text-muted">{{ r.proprietaire.telephone or '' }}</small>
+            </td>
+            <td class="text-center">
+              <span class="badge bg-success">{{ r.nb_biens }}</span>
+            </td>
+            <td class="text-end text-warning">{{ '%.3f'|format(r.depenses_communes) }}</td>
+            <td class="text-end text-danger">{{ '%.3f'|format(r.depenses_perso) }}</td>
+            <td class="text-end fw-bold text-danger">{{ '%.3f'|format(r.total_depenses) }}</td>
+            <td class="text-end fw-bold text-success">{{ '%.3f'|format(r.revenus) }}</td>
+            <td class="text-end fw-bold text-{{ 'success' if r.benefice >= 0 else 'danger' }}">
+              {{ '%.3f'|format(r.benefice) }} TND
+            </td>
+            <td>
+              <a href="{{ url_for('proprietaire_dashboard', id=r.proprietaire.id) }}"
+                 class="btn btn-sm btn-outline-success">
+                <i class="fas fa-eye"></i>
+              </a>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="8" class="text-center text-muted py-4">Aucun propriétaire</td></tr>
+          {% endfor %}
+        </tbody>
+        {% if rapport %}
+        <tfoot class="table-dark">
+          <tr>
+            <td colspan="4"><strong>TOTAUX</strong></td>
+            <td class="text-end fw-bold text-danger">
+              {{ '%.3f TND'|format(rapport|sum(attribute='total_depenses')) }}
+            </td>
+            <td class="text-end fw-bold text-success">
+              {{ '%.3f TND'|format(rapport|sum(attribute='revenus')) }}
+            </td>
+            <td class="text-end fw-bold">
+              {{ '%.3f TND'|format(rapport|sum(attribute='benefice')) }}
+            </td>
+            <td></td>
+          </tr>
+        </tfoot>
+        {% endif %}
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

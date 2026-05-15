@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Dépenses — {{ prop.nom }}{% endblock %}
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="d-flex align-items-center mb-4">
+    <a href="{{ url_for('proprietaire_dashboard', id=prop.id) }}" class="btn btn-outline-secondary btn-sm me-3">
+      <i class="fas fa-arrow-left"></i>
+    </a>
+    <h2 class="mb-0"><i class="fas fa-receipt text-warning me-2"></i>Dépenses — {{ prop.nom }}</h2>
+  </div>
+
+  <!-- Formulaire ajout -->
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white fw-bold">
+      <i class="fas fa-plus text-success me-2"></i>Nouvelle dépense
+    </div>
+    <div class="card-body">
+      <form method="POST" enctype="multipart/form-data">
+        <div class="row">
+          <div class="col-md-3 mb-3">
+            <label class="form-label fw-bold">Type</label>
+            <select name="type_depense" class="form-select">
+              <option value="personnelle">💳 Personnelle</option>
+              <option value="part_commune">🤝 Part commune</option>
+            </select>
+          </div>
+          <div class="col-md-3 mb-3">
+            <label class="form-label fw-bold">Catégorie <span class="text-danger">*</span></label>
+            <select name="categorie" class="form-select" required>
+              {% for c in categories %}<option>{{ c }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-md-2 mb-3">
+            <label class="form-label fw-bold">Montant (TND) <span class="text-danger">*</span></label>
+            <input type="number" name="montant_tnd" class="form-control" step="0.001" required>
+          </div>
+          <div class="col-md-2 mb-3">
+            <label class="form-label fw-bold">Date <span class="text-danger">*</span></label>
+            <input type="date" name="date_depense" class="form-control"
+                   value="{{ now.strftime('%Y-%m-%d') }}" required>
+          </div>
+          <div class="col-md-2 mb-3">
+            <label class="form-label fw-bold">Facture</label>
+            <input type="file" name="facture" class="form-control" accept=".pdf,.jpg,.png">
+          </div>
+          <div class="col-12 mb-3">
+            <label class="form-label fw-bold">Description</label>
+            <input type="text" name="description" class="form-control">
+          </div>
+        </div>
+        <button type="submit" class="btn btn-warning">
+          <i class="fas fa-save me-1"></i>Enregistrer
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Liste dépenses -->
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-white fw-bold d-flex justify-content-between">
+      <span><i class="fas fa-list me-2"></i>Historique</span>
+      <strong class="text-danger">
+        Total : {{ '%.3f TND'|format(depenses|sum(attribute='montant_tnd')|float) }}
+      </strong>
+    </div>
+    <div class="card-body p-0">
+      <table class="table table-hover mb-0">
+        <thead class="table-dark">
+          <tr><th>Date</th><th>Type</th><th>Catégorie</th><th>Description</th><th>Facture</th><th class="text-end">Montant</th></tr>
+        </thead>
+        <tbody>
+          {% for dep in depenses %}
+          <tr>
+            <td>{{ dep.date_depense.strftime('%d/%m/%Y') }}</td>
+            <td>
+              {% if dep.type_depense == 'personnelle' %}
+                <span class="badge bg-primary">Personnelle</span>
+              {% else %}
+                <span class="badge bg-warning text-dark">Part commune</span>
+              {% endif %}
+            </td>
+            <td><span class="badge bg-secondary">{{ dep.categorie }}</span></td>
+            <td>{{ dep.description or '—' }}</td>
+            <td>
+              {% if dep.facture_fichier %}
+                <a href="{{ url_for('serve_facture', filename=dep.facture_fichier) }}"
+                   target="_blank" class="btn btn-sm btn-outline-primary">
+                  <i class="fas fa-file"></i>
+                </a>
+              {% else %}—{% endif %}
+            </td>
+            <td class="text-end fw-bold text-danger">{{ '%.3f'|format(dep.montant_tnd|float) }} TND</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="text-center text-muted py-4">Aucune dépense enregistrée</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

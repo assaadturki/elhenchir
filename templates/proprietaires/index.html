@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Propriétaires{% endblock %}
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+      <h2 class="mb-0"><i class="fas fa-user-tie text-success me-2"></i>Propriétaires</h2>
+      <small class="text-muted">{{ proprietaires|length }} propriétaire(s) enregistré(s)</small>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('add_part_proprietaire') }}" class="btn btn-outline-success">
+        <i class="fas fa-link me-1"></i> Assigner une part
+      </a>
+      <a href="{{ url_for('rapport_proprietaires') }}" class="btn btn-outline-primary">
+        <i class="fas fa-chart-pie me-1"></i> Rapport global
+      </a>
+      {% if current_user.role in ['admin','manager'] %}
+      <a href="{{ url_for('create_proprietaire') }}" class="btn btn-success">
+        <i class="fas fa-plus me-1"></i> Nouveau propriétaire
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="row">
+    {% for prop in proprietaires %}
+    <div class="col-md-6 col-lg-4 mb-3">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <div class="d-flex align-items-center mb-3">
+            <div class="avatar-circle bg-success me-3">{{ prop.nom[0].upper() }}</div>
+            <div>
+              <h5 class="mb-0">{{ prop.nom }} {{ prop.prenom or '' }}</h5>
+              <small class="text-muted">{{ prop.telephone or '—' }}</small>
+            </div>
+          </div>
+
+          {% set parts = prop.parts %}
+          <div class="row text-center mb-3">
+            <div class="col-3">
+              <div class="fw-bold text-success">{{ parts|selectattr('type_bien','eq','parcelle')|list|length }}</div>
+              <small class="text-muted">Parcelles</small>
+            </div>
+            <div class="col-3">
+              <div class="fw-bold text-primary">{{ parts|selectattr('type_bien','eq','animal')|list|length }}</div>
+              <small class="text-muted">Animaux</small>
+            </div>
+            <div class="col-3">
+              <div class="fw-bold text-warning">{{ parts|selectattr('type_bien','eq','olivier')|list|length }}</div>
+              <small class="text-muted">Oliviers</small>
+            </div>
+            <div class="col-3">
+              <div class="fw-bold text-danger">{{ parts|selectattr('type_bien','eq','materiel')|list|length }}</div>
+              <small class="text-muted">Matériel</small>
+            </div>
+          </div>
+
+          <div class="d-flex gap-2">
+            <a href="{{ url_for('proprietaire_dashboard', id=prop.id) }}"
+               class="btn btn-sm btn-success flex-grow-1">
+              <i class="fas fa-chart-line me-1"></i> Dashboard
+            </a>
+            <a href="{{ url_for('depenses_proprietaire', id=prop.id) }}"
+               class="btn btn-sm btn-outline-warning">
+              <i class="fas fa-receipt"></i>
+            </a>
+            <a href="{{ url_for('edit_proprietaire', id=prop.id) }}"
+               class="btn btn-sm btn-outline-primary">
+              <i class="fas fa-edit"></i>
+            </a>
+            {% if current_user.role == 'admin' %}
+            <button onclick="deleteProp({{ prop.id }}, '{{ prop.nom }}')"
+                    class="btn btn-sm btn-outline-danger">
+              <i class="fas fa-trash"></i>
+            </button>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="col-12 text-center py-5 text-muted">
+      <i class="fas fa-user-tie fa-3x mb-3 d-block"></i>
+      Aucun propriétaire enregistré.
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<style>
+.avatar-circle {
+  width: 45px; height: 45px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-weight: bold; font-size: 18px; flex-shrink: 0;
+}
+</style>
+
+<script>
+function deleteProp(id, nom) {
+  if (!confirm(`Supprimer le propriétaire "${nom}" ?`)) return;
+  fetch(`/proprietaires/delete/${id}`, {method: 'POST'})
+    .then(r => r.json())
+    .then(d => { if (d.success) location.reload(); else alert('Erreur: ' + d.error); });
+}
+</script>
+{% endblock %}
