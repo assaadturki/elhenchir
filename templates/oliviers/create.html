@@ -1,19 +1,125 @@
 {% extends "base.html" %}
-
 {% block content %}
-<h2>➕ Ajouter un olivier</h2>
-<form method="POST">
-    <div class="row">
-        <div class="col-md-6">
-            <div class="mb-3"><label>Parcelle</label><select name="parcelle_id" class="form-control" required>{% for p in parcelles %}<option value="{{ p.id }}">{{ p.nom }}</option>{% endfor %}</select></div>
-            <div class="mb-3"><label>N° arbre</label><input type="text" name="numero_arbre" class="form-control"></div>
-            <div class="mb-3"><label>Variété</label><select name="variete" class="form-control">{% for v in varietes %}<option value="{{ v }}">{{ v }}</option>{% endfor %}</select></div>
-            <div class="mb-3"><label>Âge (ans)</label><input type="number" name="age" class="form-control"></div>
-            <div class="mb-3"><label>Date plantation</label><input type="date" name="date_plantation" class="form-control"></div>
-            <div class="mb-3"><label>État sanitaire</label><select name="etat_sante" class="form-control"><option value="Excellent">Excellent</option><option value="Bon">Bon</option><option value="Moyen">Moyen</option><option value="Mauvais">Mauvais</option></select></div>
-            <button type="submit" class="btn btn-success">Enregistrer</button>
-            <a href="{{ url_for('oliviers') }}" class="btn btn-secondary">Annuler</a>
+<div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3">
+    <h2>Ajouter un olivier</h2>
+    <a href="{{ url_for('oliviers') }}" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Retour</a>
+</div>
+
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <form method="POST">
+
+        <div class="card mb-3">
+            <div class="card-header bg-success text-white"><i class="fas fa-tree me-2"></i>Informations olivier</div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Parcelle *</label>
+                        <select name="parcelle_id" class="form-control" required>
+                            {% for p in parcelles %}<option value="{{ p.id }}">{{ p.nom }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">N arbre</label>
+                        <input type="text" name="numero_arbre" class="form-control">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Variete</label>
+                        <select name="variete" class="form-control">
+                            {% for v in varietes %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Age (ans)</label>
+                        <input type="number" name="age" class="form-control">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Date plantation</label>
+                        <input type="date" name="date_plantation" class="form-control">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Etat sanitaire</label>
+                        <select name="etat_sante" class="form-control">
+                            <option value="Excellent">Excellent</option>
+                            <option value="Bon">Bon</option>
+                            <option value="Moyen">Moyen</option>
+                            <option value="Mauvais">Mauvais</option>
+                        </select>
+                    </div>
+                    <div class="col-12 mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea name="notes" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+            </div>
         </div>
+
+        <!-- PROPRIETAIRES -->
+        <div class="card mb-3 border-warning">
+            <div class="card-header bg-warning text-dark">
+                <i class="fas fa-user-tie me-2"></i>Proprietaires &amp; Parts
+                <small class="ms-2">(total doit etre 100%)</small>
+            </div>
+            <div class="card-body">
+                <div id="proprietaires-container">
+                    <div class="row proprietaire-row mb-2">
+                        <div class="col-md-7">
+                            <select name="prop_id[]" class="form-select">
+                                <option value="">-- Choisir un proprietaire --</option>
+                                {% for p in proprietaires %}
+                                <option value="{{ p.id }}">{{ p.nom }} {{ p.prenom or '' }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="input-group">
+                                <input type="number" name="prop_part[]" class="form-control part-input"
+                                       min="0" max="100" step="0.01" placeholder="Part %"
+                                       oninput="updateTotal()">
+                                <span class="input-group-text">%</span>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="button" class="btn btn-outline-danger w-100" onclick="removeRow(this)">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-2">
+                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="addRow()">
+                        <i class="fas fa-plus me-1"></i> Ajouter proprietaire
+                    </button>
+                    <span class="badge bg-secondary" id="total-badge">Total: 0%</span>
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-success"><i class="fas fa-save me-1"></i>Enregistrer</button>
+        <a href="{{ url_for('oliviers') }}" class="btn btn-secondary">Annuler</a>
+        </form>
     </div>
-</form>
+</div>
+
+<script>
+const proprietairesOptions = `{% for p in proprietaires %}<option value="{{ p.id }}">{{ p.nom }} {{ p.prenom or '' }}</option>{% endfor %}`;
+function addRow() {
+    const container = document.getElementById('proprietaires-container');
+    const row = document.createElement('div');
+    row.className = 'row proprietaire-row mb-2';
+    row.innerHTML = `
+        <div class="col-md-7"><select name="prop_id[]" class="form-select"><option value="">-- Choisir --</option>${proprietairesOptions}</select></div>
+        <div class="col-md-3"><div class="input-group"><input type="number" name="prop_part[]" class="form-control part-input" min="0" max="100" step="0.01" placeholder="Part %" oninput="updateTotal()"><span class="input-group-text">%</span></div></div>
+        <div class="col-md-2"><button type="button" class="btn btn-outline-danger w-100" onclick="removeRow(this)"><i class="fas fa-times"></i></button></div>`;
+    container.appendChild(row);
+}
+function removeRow(btn) { btn.closest('.proprietaire-row').remove(); updateTotal(); }
+function updateTotal() {
+    let total = 0;
+    document.querySelectorAll('.part-input').forEach(i => { total += parseFloat(i.value) || 0; });
+    const badge = document.getElementById('total-badge');
+    badge.textContent = `Total: ${total.toFixed(1)}%`;
+    badge.className = total > 100 ? 'badge bg-danger' : total === 100 ? 'badge bg-success' : 'badge bg-secondary';
+}
+</script>
 {% endblock %}
