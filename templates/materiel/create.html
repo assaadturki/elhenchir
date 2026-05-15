@@ -1,75 +1,143 @@
-<!-- ===== templates/materiel/create.html ===== -->
 {% extends "base.html" %}
-{% block title %}Ajouter Matériel{% endblock %}
+{% block title %}Ajouter Materiel{% endblock %}
 {% block content %}
-<div class="container py-4" style="max-width:700px">
-  <div class="d-flex align-items-center mb-4">
+<div class="d-flex align-items-center mb-4">
     <a href="{{ url_for('materiel') }}" class="btn btn-outline-secondary btn-sm me-3"><i class="fas fa-arrow-left"></i></a>
-    <h2 class="mb-0"><i class="fas fa-plus text-success me-2"></i>Ajouter matériel</h2>
-  </div>
-  <div class="card border-0 shadow-sm">
-    <div class="card-body p-4">
-      <form method="POST">
-        <div class="row">
-          <div class="col-md-6 mb-3">
-            <label class="form-label fw-bold">Nom <span class="text-danger">*</span></label>
-            <input type="text" name="nom" class="form-control" required placeholder="Ex: Tracteur principal">
-          </div>
-          <div class="col-md-6 mb-3">
-            <label class="form-label fw-bold">Type</label>
-            <select name="type_materiel" class="form-select">
-              <option value="">-- Choisir --</option>
-              {% for t in types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
-            </select>
-          </div>
-          <div class="col-md-6 mb-3">
-            <label class="form-label fw-bold">Marque</label>
-            <input type="text" name="marque" class="form-control" placeholder="Ex: John Deere">
-          </div>
-          <div class="col-md-6 mb-3">
-            <label class="form-label fw-bold">Modèle</label>
-            <input type="text" name="modele" class="form-control">
-          </div>
-          <div class="col-md-6 mb-3">
-            <label class="form-label fw-bold">Numéro de série</label>
-            <input type="text" name="numero_serie" class="form-control">
-          </div>
-          <div class="col-md-6 mb-3">
-            <label class="form-label fw-bold">Année d'achat</label>
-            <input type="number" name="annee_achat" class="form-control" min="1990" max="{{ now.year }}" placeholder="{{ now.year }}">
-          </div>
-          <div class="col-md-6 mb-3">
-            <label class="form-label fw-bold">Prix d'achat (TND)</label>
-            <input type="number" name="prix_achat" class="form-control" step="0.001" min="0">
-          </div>
-          <div class="col-md-6 mb-3">
-            <label class="form-label fw-bold">État</label>
-            <select name="etat" class="form-select">
-              {% for val, label in etats %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
-            </select>
-          </div>
-          <div class="col-md-6 mb-3">
-            <label class="form-label fw-bold">Parcelle assignée</label>
-            <select name="parcelle_id" class="form-select">
-              <option value="">-- Aucune --</option>
-              {% for p in plots %}<option value="{{ p.id }}">{{ p.nom }}</option>{% endfor %}
-            </select>
-          </div>
-          <div class="col-md-6 mb-3">
-            <label class="form-label fw-bold">Localisation</label>
-            <input type="text" name="localisation" class="form-control" placeholder="Hangar, Parcelle B...">
-          </div>
-          <div class="col-12 mb-4">
-            <label class="form-label fw-bold">Notes</label>
-            <textarea name="notes" class="form-control" rows="2"></textarea>
-          </div>
-        </div>
-        <div class="d-grid gap-2">
-          <button type="submit" class="btn btn-success"><i class="fas fa-save me-1"></i>Enregistrer</button>
-          <a href="{{ url_for('materiel') }}" class="btn btn-outline-secondary">Annuler</a>
-        </div>
-      </form>
-    </div>
-  </div>
+    <h2 class="mb-0"><i class="fas fa-plus text-success me-2"></i>Ajouter materiel</h2>
 </div>
+
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <form method="POST">
+
+        <div class="card mb-3 border-0 shadow-sm">
+            <div class="card-header bg-success text-white"><i class="fas fa-tools me-2"></i>Informations materiel</div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Nom *</label>
+                        <input type="text" name="nom" class="form-control" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Type</label>
+                        <select name="type_materiel" class="form-select">
+                            <option value="">-- Choisir --</option>
+                            {% for t in types %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Marque</label>
+                        <input type="text" name="marque" class="form-control">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Modele</label>
+                        <input type="text" name="modele" class="form-control">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Numero de serie</label>
+                        <input type="text" name="numero_serie" class="form-control">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Annee d'achat</label>
+                        <input type="number" name="annee_achat" class="form-control" min="1990" max="{{ now.year }}">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Prix d'achat (TND)</label>
+                        <input type="number" name="prix_achat" class="form-control" step="0.001" min="0">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Etat</label>
+                        <select name="etat" class="form-select">
+                            {% for val, label in etats %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Parcelle assignee</label>
+                        <select name="parcelle_id" class="form-select">
+                            <option value="">-- Aucune --</option>
+                            {% for p in plots %}<option value="{{ p.id }}">{{ p.nom }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">Localisation</label>
+                        <input type="text" name="localisation" class="form-control">
+                    </div>
+                    <div class="col-12 mb-3">
+                        <label class="form-label fw-bold">Notes</label>
+                        <textarea name="notes" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PROPRIETAIRES -->
+        <div class="card mb-3 border-warning">
+            <div class="card-header bg-warning text-dark">
+                <i class="fas fa-user-tie me-2"></i>Proprietaires &amp; Parts
+                <small class="ms-2">(total doit etre 100%)</small>
+            </div>
+            <div class="card-body">
+                <div id="proprietaires-container">
+                    <div class="row proprietaire-row mb-2">
+                        <div class="col-md-7">
+                            <select name="prop_id[]" class="form-select">
+                                <option value="">-- Choisir un proprietaire --</option>
+                                {% for p in proprietaires %}
+                                <option value="{{ p.id }}">{{ p.nom }} {{ p.prenom or '' }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="input-group">
+                                <input type="number" name="prop_part[]" class="form-control part-input"
+                                       min="0" max="100" step="0.01" placeholder="Part %"
+                                       oninput="updateTotal()">
+                                <span class="input-group-text">%</span>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="button" class="btn btn-outline-danger w-100" onclick="removeRow(this)">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-2">
+                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="addRow()">
+                        <i class="fas fa-plus me-1"></i> Ajouter proprietaire
+                    </button>
+                    <span class="badge bg-secondary" id="total-badge">Total: 0%</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-grid gap-2">
+            <button type="submit" class="btn btn-success"><i class="fas fa-save me-1"></i>Enregistrer</button>
+            <a href="{{ url_for('materiel') }}" class="btn btn-outline-secondary">Annuler</a>
+        </div>
+        </form>
+    </div>
+</div>
+
+<script>
+const proprietairesOptions = `{% for p in proprietaires %}<option value="{{ p.id }}">{{ p.nom }} {{ p.prenom or '' }}</option>{% endfor %}`;
+function addRow() {
+    const container = document.getElementById('proprietaires-container');
+    const row = document.createElement('div');
+    row.className = 'row proprietaire-row mb-2';
+    row.innerHTML = `
+        <div class="col-md-7"><select name="prop_id[]" class="form-select"><option value="">-- Choisir --</option>${proprietairesOptions}</select></div>
+        <div class="col-md-3"><div class="input-group"><input type="number" name="prop_part[]" class="form-control part-input" min="0" max="100" step="0.01" placeholder="Part %" oninput="updateTotal()"><span class="input-group-text">%</span></div></div>
+        <div class="col-md-2"><button type="button" class="btn btn-outline-danger w-100" onclick="removeRow(this)"><i class="fas fa-times"></i></button></div>`;
+    container.appendChild(row);
+}
+function removeRow(btn) { btn.closest('.proprietaire-row').remove(); updateTotal(); }
+function updateTotal() {
+    let total = 0;
+    document.querySelectorAll('.part-input').forEach(i => { total += parseFloat(i.value) || 0; });
+    const badge = document.getElementById('total-badge');
+    badge.textContent = `Total: ${total.toFixed(1)}%`;
+    badge.className = total > 100 ? 'badge bg-danger' : total === 100 ? 'badge bg-success' : 'badge bg-secondary';
+}
+</script>
 {% endblock %}
