@@ -81,6 +81,12 @@
                     <i class="fas fa-sign-out-alt"></i> Deconnexion
                 </a>
             </div>
+	    <div class="nav-item text-nowrap">
+   		 <button onclick="if(confirm('Fermer l\'application ?')) window.close();" 
+            	 class="btn btn-sm btn-danger ms-2 me-2">
+        	 	<i class="fas fa-power-off"></i> Fermer
+    		 </button>
+	   </div>
         </div>
     </nav>
 
@@ -101,6 +107,7 @@
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('livestock_dashboard') }}"><i class="fas fa-paw"></i> Elevage</a></li>
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('oliviers') }}"><i class="fas fa-tree"></i> Oliveraie</a></li>
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('materiel') }}"><i class="fas fa-tools"></i> Materiel</a></li>
+			<li class="nav-item"><a class="nav-link" href="{{ url_for('proprietaires') }}"><i class="fas fa-user-tie"></i> Propriétaires</a></li>
                         <!-- SECTION COMPTE -->
                         <div class="sidebar-divider"></div>
                         <div class="sidebar-section-label">Mon compte</div>
@@ -139,7 +146,10 @@
                         {% endif %}
                     {% endwith %}
                 </div>
-                {% block content %}{% endblock %}
+              {% block content %}{% endblock %}
+		<div class="text-center py-3 mt-4" style="border-top: 1px solid #dee2e6; color: #6c757d; font-size: 0.85rem;">
+    			© 2026 — Créée &amp; développée par <strong>Lassaad Turki</strong>
+		</div>
             </main>
         </div>
     </div>
