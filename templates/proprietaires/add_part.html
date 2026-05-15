@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Assigner une part{% endblock %}
+{% block content %}
+<div class="container py-4" style="max-width:650px">
+  <div class="d-flex align-items-center mb-4">
+    <a href="{{ url_for('proprietaires') }}" class="btn btn-outline-secondary btn-sm me-3">
+      <i class="fas fa-arrow-left"></i>
+    </a>
+    <h2 class="mb-0"><i class="fas fa-percentage text-success me-2"></i>Assigner une part</h2>
+  </div>
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-body p-4">
+      <form method="POST">
+        <div class="mb-3">
+          <label class="form-label fw-bold">Propriétaire <span class="text-danger">*</span></label>
+          <select name="proprietaire_id" class="form-select" required>
+            <option value="">-- Choisir --</option>
+            {% for p in proprietaires %}
+            <option value="{{ p.id }}">{{ p.nom }} {{ p.prenom or '' }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-bold">Type de bien <span class="text-danger">*</span></label>
+          <select name="type_bien" id="type_bien" class="form-select" required onchange="updateBiens()">
+            <option value="">-- Choisir --</option>
+            <option value="parcelle">🌱 Parcelle</option>
+            <option value="animal">🐄 Animal</option>
+            <option value="olivier">🫒 Olivier</option>
+            <option value="materiel">🚜 Matériel</option>
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-bold">Bien concerné <span class="text-danger">*</span></label>
+          <select name="bien_id" id="bien_id" class="form-select" required>
+            <option value="">-- Choisir le type d'abord --</option>
+          </select>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label fw-bold">Part (%) <span class="text-danger">*</span></label>
+          <div class="input-group">
+            <input type="number" name="part_pct" class="form-control" min="1" max="100"
+                   step="0.01" required placeholder="Ex: 50">
+            <span class="input-group-text">%</span>
+          </div>
+          <small class="text-muted">La somme des parts pour un même bien ne peut pas dépasser 100%</small>
+        </div>
+
+        <div class="d-grid gap-2">
+          <button type="submit" class="btn btn-success"><i class="fas fa-save me-1"></i>Assigner</button>
+          <a href="{{ url_for('proprietaires') }}" class="btn btn-outline-secondary">Annuler</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+const biens = {
+  parcelle: [{% for p in plots %}{ id: {{ p.id }}, nom: "{{ p.nom }}" },{% endfor %}],
+  animal: [{% for a in animals %}{ id: {{ a.id }}, nom: "{{ a.nom or a.numero_identification or 'Animal ' + a.id|string }}" },{% endfor %}],
+  olivier: [{% for o in oliviers %}{ id: {{ o.id }}, nom: "{{ o.numero_arbre or 'Olivier ' + o.id|string }} - {{ o.variete or '' }}" },{% endfor %}],
+  materiel: [{% for m in materiels %}{ id: {{ m.id }}, nom: "{{ m.nom }}" },{% endfor %}],
+};
+
+function updateBiens() {
+  const type = document.getElementById('type_bien').value;
+  const select = document.getElementById('bien_id');
+  select.innerHTML = '<option value="">-- Choisir --</option>';
+  if (type && biens[type]) {
+    biens[type].forEach(b => {
+      const opt = document.createElement('option');
+      opt.value = b.id;
+      opt.textContent = b.nom;
+      select.appendChild(opt);
+    });
+  }
+}
+</script>
+{% endblock %}
