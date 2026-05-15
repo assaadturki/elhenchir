@@ -6,6 +6,8 @@ from flask_migrate import Migrate
 from datetime import datetime, timedelta
 from sqlalchemy import func
 import os
+import json
+
 from dotenv import load_dotenv
 import uuid
 from werkzeug.utils import secure_filename
@@ -16,7 +18,7 @@ load_dotenv()
 from config import get_config
 from models import (db, User, Plot, Crop, Expense, Revenue, Inventory, InventoryMovement,
                     Employee, Attendance, Harvest, Notification,
-                    AnimalType, Animal, AnimalSoin, AnimalProduction, Alimentation)
+                    AnimalType, Animal, AnimalSoin, AnimalProduction, Alimentation , Proprietaire, PartProprietaire, DepenseProprietaire)
 
 # ========== CREATION DE L'APPLICATION ==========
 app = Flask(__name__)
@@ -49,6 +51,25 @@ def manager_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+@app.route('/save_remember', methods=['POST'])
+def save_remember():
+    data = request.get_json()
+    remember_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'remember.json')
+    if data.get('remember'):
+        with open(remember_file, 'w') as f:
+            json.dump({'email': data.get('email')}, f)
+    else:
+        if os.path.exists(remember_file):
+            os.remove(remember_file)
+    return jsonify({'success': True})
+
+@app.route('/get_remember')
+def get_remember():
+    remember_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'remember.json')
+    if os.path.exists(remember_file):
+        with open(remember_file, 'r') as f:
+            return jsonify(json.load(f))
+    return jsonify({'email': ''})
 
 # ========== GESTIONNAIRES D'ERREUR ==========
 @app.errorhandler(403)
@@ -455,9 +476,13 @@ def plots():
     return render_template('plots/index.html', plots=all_plots)
 
 
+# Remplacer la route create_plot dans app.py par celle-ci :
+
 @app.route('/plots/create', methods=['GET', 'POST'])
 @login_required
+@manager_required
 def create_plot():
+    proprietaires_list = Proprietaire.query.order_by(Proprietaire.nom).all()
     if request.method == 'POST':
         try:
             plot = Plot(
@@ -469,14 +494,36 @@ def create_plot():
                 statut=request.form.get('statut', 'active')
             )
             db.session.add(plot)
+            db.session.flush()  # Pour avoir plot.id
+
+            # Enregistrer les parts proprietaires
+            prop_ids = request.form.getlist('prop_id[]')
+            prop_parts = request.form.getlist('prop_part[]')
+            total_parts = 0
+            for pid, ppart in zip(prop_ids, prop_parts):
+                if pid and ppart:
+                    pct = float(ppart)
+                    total_parts += pct
+                    if pct > 0:
+                        db.session.add(PartProprietaire(
+                            proprietaire_id=int(pid),
+                            type_bien='parcelle',
+                            bien_id=plot.id,
+                            part_pct=pct
+                        ))
+
+            if total_parts > 100:
+                db.session.rollback()
+                flash('Erreur: Total des parts depasse 100%!', 'danger')
+                return render_template('plots/create.html', proprietaires=proprietaires_list)
+
             db.session.commit()
             flash('Parcelle ajoutee avec succes!', 'success')
             return redirect(url_for('plots'))
         except Exception as e:
             db.session.rollback()
             flash(f'Erreur: {str(e)}', 'danger')
-    return render_template('plots/create.html')
-
+    return render_template('plots/create.html', proprietaires=proprietaires_list)
 
 @app.route('/plots/edit/<int:id>', methods=['GET', 'POST'])
 @login_required
@@ -586,12 +633,13 @@ def expenses():
 
 @app.route('/expenses/create', methods=['GET', 'POST'])
 @login_required
+@manager_required
 def create_expense():
     plots_list = Plot.query.all()
+    proprietaires_list = Proprietaire.query.order_by(Proprietaire.nom).all()
     categories = ['Semences', 'Engrais', 'Eau', 'Carburant', 'Salaires',
                   'Transport', 'Reparation materiel', 'Electricite',
                   'Produits veterinaires', 'Nourriture animale', 'Loyer', 'Assurances', 'Autre']
-
     if request.method == 'POST':
         try:
             facture_fichier = save_facture(request.files.get('facture'))
@@ -602,19 +650,34 @@ def create_expense():
                 description=request.form.get('description'),
                 parcelle_id=int(request.form.get('parcelle_id')) if request.form.get('parcelle_id') else None,
                 fournisseur=request.form.get('fournisseur'),
-                reference=request.form.get('reference'),
                 facture_fichier=facture_fichier
             )
             db.session.add(expense)
+            db.session.flush()
+
+            # Depense personnelle d'un proprietaire
+            prop_id = request.form.get('proprietaire_id')
+            if prop_id:
+                dep_prop = DepenseProprietaire(
+                    proprietaire_id=int(prop_id),
+                    categorie=expense.categorie,
+                    montant_tnd=expense.montant_tnd,
+                    date_depense=expense.date_depense,
+                    description=expense.description,
+                    type_depense=request.form.get('type_depense_prop', 'personnelle'),
+                    facture_fichier=facture_fichier
+                )
+                db.session.add(dep_prop)
+
             db.session.commit()
             flash('Depense ajoutee avec succes!', 'success')
             return redirect(url_for('expenses'))
         except Exception as e:
             db.session.rollback()
             flash(f'Erreur: {str(e)}', 'danger')
-
-    return render_template('expenses/create.html', plots=plots_list, categories=categories, now=datetime.now())
-
+    return render_template('expenses/create.html', plots=plots_list,
+                           categories=categories, proprietaires=proprietaires_list,
+                           now=datetime.now())
 
 # ========== REVENUS ==========
 @app.route('/revenues')
@@ -1003,9 +1066,9 @@ def animal_types():
     types = AnimalType.query.all()
     return render_template('livestock/types.html', types=types)
 
-
 @app.route('/livestock/types/create', methods=['GET', 'POST'])
 @login_required
+@manager_required
 def create_animal_type():
     if request.method == 'POST':
         try:
@@ -1023,6 +1086,59 @@ def create_animal_type():
             flash(f'Erreur: {str(e)}', 'danger')
     return render_template('livestock/create_type.html')
 
+@app.route('/livestock/animals/create', methods=['GET', 'POST'])
+@login_required
+@manager_required
+def create_animal():
+    types = AnimalType.query.all()
+    plots_list = Plot.query.all()
+    proprietaires_list = Proprietaire.query.order_by(Proprietaire.nom).all()
+    if request.method == 'POST':
+        try:
+            animal = Animal(
+                type_id=int(request.form.get('type_id')),
+                numero_identification=request.form.get('numero_identification'),
+                nom=request.form.get('nom'),
+                sexe=request.form.get('sexe'),
+                date_naissance=datetime.strptime(request.form.get('date_naissance'), '%Y-%m-%d').date() if request.form.get('date_naissance') else None,
+                race=request.form.get('race'),
+                poids_naissance=float(request.form.get('poids_naissance')) if request.form.get('poids_naissance') else None,
+                prix_achat=float(request.form.get('prix_achat')) if request.form.get('prix_achat') else None,
+                date_achat=datetime.strptime(request.form.get('date_achat'), '%Y-%m-%d').date() if request.form.get('date_achat') else None,
+                parcelle_id=int(request.form.get('parcelle_id')) if request.form.get('parcelle_id') else None,
+                notes=request.form.get('notes')
+            )
+            db.session.add(animal)
+            db.session.flush()
+
+            # Enregistrer parts proprietaires
+            prop_ids = request.form.getlist('prop_id[]')
+            prop_parts = request.form.getlist('prop_part[]')
+            total_parts = 0
+            for pid, ppart in zip(prop_ids, prop_parts):
+                if pid and ppart:
+                    pct = float(ppart)
+                    total_parts += pct
+                    if pct > 0:
+                        db.session.add(PartProprietaire(
+                            proprietaire_id=int(pid),
+                            type_bien='animal',
+                            bien_id=animal.id,
+                            part_pct=pct
+                        ))
+            if total_parts > 100:
+                db.session.rollback()
+                flash('Erreur: Total des parts depasse 100%!', 'danger')
+                return render_template('livestock/create_animal.html', types=types,
+                                       plots=plots_list, proprietaires=proprietaires_list)
+            db.session.commit()
+            flash('Animal ajoute avec succes!', 'success')
+            return redirect(url_for('animals'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erreur: {str(e)}', 'danger')
+    return render_template('livestock/create_animal.html', types=types,
+                           plots=plots_list, proprietaires=proprietaires_list)
 
 @app.route('/livestock/animals')
 @login_required
@@ -1031,41 +1147,6 @@ def animals():
     return render_template('livestock/animals.html', animals=all_animals)
 
 
-@app.route('/livestock/animals/create', methods=['GET', 'POST'])
-@login_required
-def create_animal():
-    types = AnimalType.query.all()
-    plots_list = Plot.query.all()
-
-    if request.method == 'POST':
-        try:
-            animal = Animal(
-                type_id=int(request.form.get('type_id')),
-                numero_identification=request.form.get('numero_identification'),
-                nom=request.form.get('nom'),
-                sexe=request.form.get('sexe'),
-                date_naissance=datetime.strptime(request.form.get('date_naissance'), '%Y-%m-%d').date()
-                    if request.form.get('date_naissance') else None,
-                race=request.form.get('race'),
-                couleur=request.form.get('couleur'),
-                poids_naissance=float(request.form.get('poids_naissance')) if request.form.get('poids_naissance') else None,
-                poids_actuel=float(request.form.get('poids_actuel')) if request.form.get('poids_actuel') else None,
-                prix_achat=float(request.form.get('prix_achat')) if request.form.get('prix_achat') else None,
-                date_achat=datetime.strptime(request.form.get('date_achat'), '%Y-%m-%d').date()
-                    if request.form.get('date_achat') else None,
-                provenance=request.form.get('provenance'),
-                parcelle_id=int(request.form.get('parcelle_id')) if request.form.get('parcelle_id') else None,
-                notes=request.form.get('notes')
-            )
-            db.session.add(animal)
-            db.session.commit()
-            flash('Animal ajoute avec succes!', 'success')
-            return redirect(url_for('animals'))
-        except Exception as e:
-            db.session.rollback()
-            flash(f'Erreur: {str(e)}', 'danger')
-
-    return render_template('livestock/create_animal.html', types=types, plots=plots_list)
 
 
 @app.route('/livestock/animals/<int:id>')
@@ -1260,10 +1341,11 @@ def oliviers():
 
 @app.route('/oliviers/create', methods=['GET', 'POST'])
 @login_required
+@manager_required
 def create_olivier():
     parcelles = Plot.query.all()
     varietes = ['Chemlali', 'Chetoui', 'Zarrazi', 'Oueslati', 'Sayali', 'Autre']
-
+    proprietaires_list = Proprietaire.query.order_by(Proprietaire.nom).all()
     if request.method == 'POST':
         try:
             olivier = Olivier(
@@ -1271,20 +1353,40 @@ def create_olivier():
                 numero_arbre=request.form.get('numero_arbre'),
                 variete=request.form.get('variete'),
                 age=int(request.form.get('age')) if request.form.get('age') else None,
-                date_plantation=datetime.strptime(request.form.get('date_plantation'), '%Y-%m-%d').date()
-                    if request.form.get('date_plantation') else None,
+                date_plantation=datetime.strptime(request.form.get('date_plantation'), '%Y-%m-%d').date() if request.form.get('date_plantation') else None,
                 etat_sante=request.form.get('etat_sante'),
                 notes=request.form.get('notes')
             )
             db.session.add(olivier)
+            db.session.flush()
+
+            prop_ids = request.form.getlist('prop_id[]')
+            prop_parts = request.form.getlist('prop_part[]')
+            total_parts = 0
+            for pid, ppart in zip(prop_ids, prop_parts):
+                if pid and ppart:
+                    pct = float(ppart)
+                    total_parts += pct
+                    if pct > 0:
+                        db.session.add(PartProprietaire(
+                            proprietaire_id=int(pid),
+                            type_bien='olivier',
+                            bien_id=olivier.id,
+                            part_pct=pct
+                        ))
+            if total_parts > 100:
+                db.session.rollback()
+                flash('Erreur: Total des parts depasse 100%!', 'danger')
+                return render_template('oliviers/create.html', parcelles=parcelles,
+                                       varietes=varietes, proprietaires=proprietaires_list)
             db.session.commit()
             flash('Olivier ajoute avec succes!', 'success')
             return redirect(url_for('oliviers'))
         except Exception as e:
             db.session.rollback()
             flash(f'Erreur: {str(e)}', 'danger')
-
-    return render_template('oliviers/create.html', parcelles=parcelles, varietes=varietes)
+    return render_template('oliviers/create.html', parcelles=parcelles,
+                           varietes=varietes, proprietaires=proprietaires_list)
 
 
 @app.route('/oliviers/edit/<int:id>', methods=['GET', 'POST'])
@@ -1515,36 +1617,65 @@ def materiel():
 @manager_required
 def create_materiel():
     plots_list = Plot.query.all()
+    proprietaires_list = Proprietaire.query.order_by(Proprietaire.nom).all()
     types = ['Tracteur', 'Charrue', 'Semoir', 'Moissonneuse', 'Pompe irrigation',
              'Pulverisateur', 'Remorque', 'Motoculteur', 'Generateur', 'Autre']
     etats = [('bon', 'Bon'), ('moyen', 'Moyen'), ('mauvais', 'Mauvais'), ('hors_service', 'Hors service')]
     if request.method == 'POST':
         try:
             mat = Materiel(
-                nom=request.form.get('nom'), type_materiel=request.form.get('type_materiel'),
-                marque=request.form.get('marque'), modele=request.form.get('modele'),
+                nom=request.form.get('nom'),
+                type_materiel=request.form.get('type_materiel'),
+                marque=request.form.get('marque'),
+                modele=request.form.get('modele'),
                 numero_serie=request.form.get('numero_serie') or None,
                 annee_achat=int(request.form.get('annee_achat')) if request.form.get('annee_achat') else None,
                 prix_achat=float(request.form.get('prix_achat')) if request.form.get('prix_achat') else None,
                 etat=request.form.get('etat', 'bon'),
                 parcelle_id=int(request.form.get('parcelle_id')) if request.form.get('parcelle_id') else None,
-                localisation=request.form.get('localisation'), notes=request.form.get('notes')
+                localisation=request.form.get('localisation'),
+                notes=request.form.get('notes')
             )
             db.session.add(mat)
             db.session.flush()
+
             prix_achat = float(request.form.get('prix_achat')) if request.form.get('prix_achat') else 0
             if prix_achat > 0:
-                db.session.add(CoutMateriel(materiel_id=mat.id, type_cout='achat',
+                db.session.add(CoutMateriel(
+                    materiel_id=mat.id, type_cout='achat',
                     montant_tnd=prix_achat, date_cout=datetime.now().date(),
-                    description=f"Achat: {mat.nom}"))
+                    description=f"Achat: {mat.nom}"
+                ))
+
+            prop_ids = request.form.getlist('prop_id[]')
+            prop_parts = request.form.getlist('prop_part[]')
+            total_parts = 0
+            for pid, ppart in zip(prop_ids, prop_parts):
+                if pid and ppart:
+                    pct = float(ppart)
+                    total_parts += pct
+                    if pct > 0:
+                        db.session.add(PartProprietaire(
+                            proprietaire_id=int(pid),
+                            type_bien='materiel',
+                            bien_id=mat.id,
+                            part_pct=pct
+                        ))
+            if total_parts > 100:
+                db.session.rollback()
+                flash('Erreur: Total des parts depasse 100%!', 'danger')
+                return render_template('materiel/create.html', plots=plots_list,
+                                       types=types, etats=etats,
+                                       proprietaires=proprietaires_list, now=datetime.now())
             db.session.commit()
             flash('Materiel ajoute!', 'success')
             return redirect(url_for('materiel'))
         except Exception as e:
             db.session.rollback()
             flash(f'Erreur: {str(e)}', 'danger')
-    return render_template('materiel/create.html', plots=plots_list, types=types, etats=etats, now=datetime.now())
-
+    return render_template('materiel/create.html', plots=plots_list,
+                           types=types, etats=etats,
+                           proprietaires=proprietaires_list, now=datetime.now())
 @app.route('/materiel/<int:id>')
 @login_required
 def materiel_detail(id):
@@ -1695,6 +1826,334 @@ def add_cout_materiel(materiel_id):
             db.session.rollback()
             flash(f'Erreur: {str(e)}', 'danger')
     return render_template('materiel/add_cout.html', mat=mat, types_cout=types_cout, now=datetime.now())
+
+
+# ========== CRUD PROPRIETAIRES ==========
+
+@app.route('/proprietaires')
+@login_required
+def proprietaires():
+    all_props = Proprietaire.query.order_by(Proprietaire.nom).all()
+    return render_template('proprietaires/index.html', proprietaires=all_props)
+
+
+@app.route('/proprietaires/create', methods=['GET', 'POST'])
+@login_required
+@manager_required
+def create_proprietaire():
+    if request.method == 'POST':
+        try:
+            prop = Proprietaire(
+                nom=request.form.get('nom'),
+                prenom=request.form.get('prenom'),
+                telephone=request.form.get('telephone'),
+                email=request.form.get('email'),
+                adresse=request.form.get('adresse'),
+                notes=request.form.get('notes')
+            )
+            db.session.add(prop)
+            db.session.commit()
+            flash(f'Proprietaire {prop.nom} ajoute avec succes!', 'success')
+            return redirect(url_for('proprietaires'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erreur: {str(e)}', 'danger')
+    return render_template('proprietaires/create.html')
+
+
+@app.route('/proprietaires/edit/<int:id>', methods=['GET', 'POST'])
+@login_required
+@manager_required
+def edit_proprietaire(id):
+    prop = db.get_or_404(Proprietaire, id)
+    if request.method == 'POST':
+        try:
+            prop.nom = request.form.get('nom')
+            prop.prenom = request.form.get('prenom')
+            prop.telephone = request.form.get('telephone')
+            prop.email = request.form.get('email')
+            prop.adresse = request.form.get('adresse')
+            prop.notes = request.form.get('notes')
+            db.session.commit()
+            flash('Proprietaire modifie!', 'success')
+            return redirect(url_for('proprietaires'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erreur: {str(e)}', 'danger')
+    return render_template('proprietaires/edit.html', prop=prop)
+
+
+@app.route('/proprietaires/delete/<int:id>', methods=['POST'])
+@login_required
+@admin_required
+def delete_proprietaire(id):
+    prop = db.get_or_404(Proprietaire, id)
+    try:
+        db.session.delete(prop)
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ========== TABLEAU DE BORD PAR PROPRIETAIRE ==========
+
+@app.route('/proprietaires/<int:id>/dashboard')
+@login_required
+def proprietaire_dashboard(id):
+    prop = db.get_or_404(Proprietaire, id)
+
+    # Récupérer toutes les parts de ce propriétaire
+    parts = PartProprietaire.query.filter_by(proprietaire_id=id).all()
+
+    # Calculer les biens possédés
+    biens = {'parcelle': [], 'animal': [], 'olivier': [], 'materiel': []}
+    for part in parts:
+        biens[part.type_bien].append({
+            'part': part,
+            'part_pct': part.part_pct
+        })
+
+    # Calculer dépenses communes (sa part)
+    depenses_communes = _calcul_depenses_communes(id, parts)
+
+    # Dépenses personnelles
+    depenses_perso = DepenseProprietaire.query.filter_by(
+        proprietaire_id=id, type_depense='personnelle'
+    ).order_by(DepenseProprietaire.date_depense.desc()).all()
+    total_depenses_perso = sum(float(d.montant_tnd) for d in depenses_perso)
+
+    # Revenus (sa part)
+    revenus_parts = _calcul_revenus_parts(id, parts)
+
+    # Totaux
+    total_depenses = depenses_communes + total_depenses_perso
+    total_revenus = revenus_parts
+    benefice = total_revenus - total_depenses
+
+    return render_template('proprietaires/dashboard.html',
+                           prop=prop,
+                           parts=parts,
+                           biens=biens,
+                           depenses_communes=depenses_communes,
+                           depenses_perso=depenses_perso,
+                           total_depenses_perso=total_depenses_perso,
+                           revenus_parts=revenus_parts,
+                           total_depenses=total_depenses,
+                           total_revenus=total_revenus,
+                           benefice=benefice)
+
+
+def _calcul_depenses_communes(proprietaire_id, parts):
+    """Calcule la part des depenses communes pour un proprietaire."""
+    total = 0.0
+
+    for part in parts:
+        pct = part.part_pct / 100.0
+
+        if part.type_bien == 'parcelle':
+            # Dépenses liées à cette parcelle
+            deps = Expense.query.filter_by(parcelle_id=part.bien_id).all()
+            total += sum(float(d.montant_tnd) for d in deps) * pct
+
+        elif part.type_bien == 'animal':
+            # Coûts soins + alimentation de cet animal
+            soins = AnimalSoin.query.filter_by(animal_id=part.bien_id).all()
+            alims = Alimentation.query.filter_by(animal_id=part.bien_id).all()
+            total += sum(float(s.cout_tnd or 0) for s in soins) * pct
+            total += sum(float(a.cout_tnd or 0) for a in alims) * pct
+
+        elif part.type_bien == 'olivier':
+            # Traitements de cet olivier
+            traitements = TraitementOlivier.query.filter_by(olivier_id=part.bien_id).all()
+            total += sum(float(t.cout_tnd or 0) for t in traitements) * pct
+
+        elif part.type_bien == 'materiel':
+            # Coûts matériel
+            couts = CoutMateriel.query.filter_by(materiel_id=part.bien_id).all()
+            total += sum(float(c.montant_tnd) for c in couts) * pct
+
+    return total
+
+
+def _calcul_revenus_parts(proprietaire_id, parts):
+    """Calcule la part des revenus pour un proprietaire."""
+    total = 0.0
+
+    for part in parts:
+        pct = part.part_pct / 100.0
+
+        if part.type_bien == 'parcelle':
+            # Revenus des cultures de cette parcelle
+            from sqlalchemy import text
+            plot = db.session.get(Plot, part.bien_id)
+            if plot:
+                for crop in plot.crops:
+                    revs = Revenue.query.filter_by(culture_id=crop.id).all()
+                    total += sum(float(r.revenu_total_tnd) for r in revs) * pct
+
+        elif part.type_bien == 'animal':
+            prods = AnimalProduction.query.filter_by(animal_id=part.bien_id).all()
+            total += sum(float(p.revenu_total or 0) for p in prods) * pct
+
+        elif part.type_bien == 'olivier':
+            prods = ProductionOlive.query.filter_by(olivier_id=part.bien_id).all()
+            total += sum(float(p.quantite_huile or 0) * float(
+                StockMoulin.query.filter_by(variete=db.session.get(Olivier, part.bien_id).variete if db.session.get(Olivier, part.bien_id) else None).first().prix_vente_litre or 0
+            ) for p in prods) * pct
+
+    return total
+
+
+# ========== GESTION DES PARTS ==========
+
+@app.route('/proprietaires/parts/add', methods=['GET', 'POST'])
+@login_required
+@manager_required
+def add_part_proprietaire():
+    proprietaires_list = Proprietaire.query.order_by(Proprietaire.nom).all()
+    plots_list = Plot.query.all()
+    animals_list = Animal.query.filter_by(statut='actif').all()
+    oliviers_list = Olivier.query.all()
+    materiels_list = Materiel.query.all()
+
+    if request.method == 'POST':
+        try:
+            type_bien = request.form.get('type_bien')
+            bien_id = int(request.form.get('bien_id'))
+            proprietaire_id = int(request.form.get('proprietaire_id'))
+            part_pct = float(request.form.get('part_pct'))
+
+            # Vérifier que le total des parts ne dépasse pas 100%
+            parts_existantes = PartProprietaire.query.filter_by(
+                type_bien=type_bien, bien_id=bien_id
+            ).all()
+            total_existant = sum(p.part_pct for p in parts_existantes)
+
+            if total_existant + part_pct > 100:
+                flash(f'Erreur: Total des parts depasse 100% (actuel: {total_existant}%)', 'danger')
+                return render_template('proprietaires/add_part.html',
+                                       proprietaires=proprietaires_list, plots=plots_list,
+                                       animals=animals_list, oliviers=oliviers_list,
+                                       materiels=materiels_list)
+
+            # Vérifier si ce propriétaire a déjà une part sur ce bien
+            existing = PartProprietaire.query.filter_by(
+                proprietaire_id=proprietaire_id, type_bien=type_bien, bien_id=bien_id
+            ).first()
+
+            if existing:
+                existing.part_pct = part_pct
+                flash('Part mise a jour!', 'success')
+            else:
+                part = PartProprietaire(
+                    proprietaire_id=proprietaire_id,
+                    type_bien=type_bien,
+                    bien_id=bien_id,
+                    part_pct=part_pct
+                )
+                db.session.add(part)
+                flash('Part ajoutee avec succes!', 'success')
+
+            db.session.commit()
+            return redirect(url_for('proprietaires'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erreur: {str(e)}', 'danger')
+
+    return render_template('proprietaires/add_part.html',
+                           proprietaires=proprietaires_list, plots=plots_list,
+                           animals=animals_list, oliviers=oliviers_list,
+                           materiels=materiels_list)
+
+
+@app.route('/proprietaires/parts/delete/<int:id>', methods=['POST'])
+@login_required
+@manager_required
+def delete_part_proprietaire(id):
+    part = db.get_or_404(PartProprietaire, id)
+    try:
+        db.session.delete(part)
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ========== DEPENSES PERSONNELLES ==========
+
+@app.route('/proprietaires/<int:id>/depenses', methods=['GET', 'POST'])
+@login_required
+@manager_required
+def depenses_proprietaire(id):
+    prop = db.get_or_404(Proprietaire, id)
+    categories = ['Semences', 'Engrais', 'Eau', 'Carburant', 'Salaires',
+                  'Veterinaire', 'Nourriture animale', 'Materiel', 'Autre']
+
+    if request.method == 'POST':
+        try:
+            facture_fichier = save_facture(request.files.get('facture'))
+            dep = DepenseProprietaire(
+                proprietaire_id=id,
+                categorie=request.form.get('categorie'),
+                montant_tnd=float(request.form.get('montant_tnd')),
+                date_depense=datetime.strptime(request.form.get('date_depense'), '%Y-%m-%d').date(),
+                description=request.form.get('description'),
+                type_depense=request.form.get('type_depense', 'personnelle'),
+                bien_type=request.form.get('bien_type') or None,
+                bien_id=int(request.form.get('bien_id')) if request.form.get('bien_id') else None,
+                facture_fichier=facture_fichier,
+                notes=request.form.get('notes')
+            )
+            db.session.add(dep)
+            db.session.commit()
+            flash('Depense enregistree!', 'success')
+            return redirect(url_for('proprietaire_dashboard', id=id))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erreur: {str(e)}', 'danger')
+
+    depenses = DepenseProprietaire.query.filter_by(
+        proprietaire_id=id
+    ).order_by(DepenseProprietaire.date_depense.desc()).all()
+
+    return render_template('proprietaires/depenses.html',
+                           prop=prop, depenses=depenses,
+                           categories=categories, now=datetime.now())
+
+
+# ========== RAPPORT GLOBAL TOUS PROPRIETAIRES ==========
+
+@app.route('/proprietaires/rapport')
+@login_required
+def rapport_proprietaires():
+    proprietaires_list = Proprietaire.query.order_by(Proprietaire.nom).all()
+    rapport = []
+
+    for prop in proprietaires_list:
+        parts = PartProprietaire.query.filter_by(proprietaire_id=prop.id).all()
+        depenses_communes = _calcul_depenses_communes(prop.id, parts)
+        revenus = _calcul_revenus_parts(prop.id, parts)
+
+        depenses_perso = DepenseProprietaire.query.filter_by(proprietaire_id=prop.id).all()
+        total_perso = sum(float(d.montant_tnd) for d in depenses_perso)
+
+        total_depenses = depenses_communes + total_perso
+        benefice = revenus - total_depenses
+
+        rapport.append({
+            'proprietaire': prop,
+            'nb_biens': len(parts),
+            'depenses_communes': depenses_communes,
+            'depenses_perso': total_perso,
+            'total_depenses': total_depenses,
+            'revenus': revenus,
+            'benefice': benefice
+        })
+
+    return render_template('proprietaires/rapport.html', rapport=rapport)
 
 # ========== LANCEMENT ==========
 if __name__ == '__main__':
